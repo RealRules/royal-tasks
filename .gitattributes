@@ -1,0 +1,35 @@
+# Normalise line endings in the repository so a Windows checkout and a Linux
+# deploy do not show every file as modified. Binary assets keep their bytes.
+* text=auto
+
+*.php  text
+*.js   text
+*.mjs  text
+*.css  text
+*.html text
+*.md   text
+*.json text
+*.conf text
+# Windows batch files need CRLF wherever they are checked out.
+*.bat  text eol=crlf
+
+*.png  binary
+*.gif  binary
+*.jpg  binary
+*.mp4  binary
+*.webm binary
+*.ico  binary
+*.woff binary
+*.woff2 binary
+
+# Byte-exact files: a PDF records byte offsets, so a CRLF conversion on a
+# Windows checkout would corrupt it; the rest are binary formats.
+*.pdf   binary
+*.docx  binary
+*.heic  binary
+*.heif  binary
+*.wasm  binary
+*.bcmap binary
+*.pfb   binary
+*.ttf   binary
+*.bz2   binary

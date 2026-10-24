@@ -1,0 +1,33 @@
+{
+  "name": "royal-kanban",
+  "version": "1.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "author": "Jesper Juul",
+  "description": "A modern, pleasant and responsive Kanban tool for normal web hosting (PHP + MySQL/MariaDB), with optional end-to-end encryption.",
+  "scripts": {
+    "build": "npm run stamp && npm run build:css",
+    "stamp": "node scripts/stamp.mjs",
+    "build:css": "tailwindcss -i ./styles/app.css -o ./assets/css/app.css --minify",
+    "watch:css": "tailwindcss -i ./styles/app.css -o ./assets/css/app.css --watch",
+    "build:vendor": "npm run vendor:sodium && npm run vendor:viewers",
+    "start": "php -S 127.0.0.1:8080 -t . router.php",
+    "test:api": "node tests/api.test.mjs",
+    "test:ui": "node tests/ui.test.cjs",
+    "test": "npm run test:api && npm run test:ui && npm run test:share && npm run test:cards",
+    "test:share": "node tests/share.test.cjs",
+    "test:cards": "node tests/cards.test.cjs",
+    "vendor:sodium": "esbuild node_modules/libsodium-wrappers-sumo/dist/modules-sumo/libsodium-wrappers.js --bundle --minify --format=iife --global-name=sodium --platform=browser --external:node:fs --external:node:path --external:node:crypto --outfile=assets/vendor/sodium.js",
+    "vendor:viewers": "node scripts/vendor.mjs"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.11",
+    "esbuild": "^0.28.2",
+    "libheif-js": "^1.23.2",
+    "libsodium-wrappers-sumo": "^0.8.4",
+    "mammoth": "^1.13.0",
+    "pdfjs-dist": "^6.3.289",
+    "puppeteer-core": "^25.12.0",
+    "tailwindcss": "^4.1.11"
+  }
+}

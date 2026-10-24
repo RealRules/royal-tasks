@@ -1,0 +1,47 @@
+# ---------------------------------------------------------------------------
+# Never commit
+# ---------------------------------------------------------------------------
+
+# This machine's database credentials and paths. install.php writes it on the
+# server; config.example.php is the template that is committed instead.
+/config.php
+
+# Card attachments: user data.
+/uploads/
+
+# Hardening files written by install.php. They name absolute paths, so they
+# belong to the machine that installed the app, not to the project.
+/.htaccess
+/.user.ini
+/src/.htaccess
+/uploads/.htaccess
+/styles/.htaccess
+/scripts/.htaccess
+/deploy/.htaccess
+
+# Dependencies (restored with `npm install`).
+/node_modules/
+
+# ---------------------------------------------------------------------------
+# Committed on purpose
+# ---------------------------------------------------------------------------
+# Nothing builds on deploy, so a fresh clone has to render straight from the
+# working tree. These are generated but tracked:
+#   assets/css/app.css     <- npm run build:css
+#   assets/js/build.js     <- npm run stamp
+#   assets/vendor/sodium.js<- npm run build:vendor
+
+# ---------------------------------------------------------------------------
+# Local server / editor noise
+# ---------------------------------------------------------------------------
+server.log
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+/configs3.php
+
+# Claude Code's local working folders.
+/.claude/

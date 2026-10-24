@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<!--
+  Everything the page needs is served from this origin, so the policy can be
+  strict: no third-party scripts, no inline script, nothing framed.
+  'unsafe-inline' for style only — element style="" attributes are used for
+  progress widths and a few one-off layout values.
+
+  frame-ancestors is deliberately absent: browsers ignore it in a <meta> tag,
+  so it is sent as a real header (public/router.php in development, the web
+  server config in production) alongside X-Frame-Options.
+-->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; object-src 'none'" />
+<title>Royal Tasks</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0f141b" />
+<meta name="description" content="Clean-utility team task boards." />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png" />
+<link rel="stylesheet" href="assets/css/app.css" />
+</head>
+<body data-scheme="palmbeach">
+
+<!-- ============ LOADING ============ -->
+<!-- Shown until the app knows whether someone is signed in, so a signed-in
+     user goes straight to the boards without the login form flashing up. -->
+<div id="loading-screen" class="loading-screen min-h-screen flex items-center justify-center p-4" role="status" aria-live="polite">
+  <div class="text-center">
+    <div class="loading-mark text-4xl" aria-hidden="true">♛</div>
+    <div class="font-black tracking-tight mt-2">Loading Royal Tasks</div>
+  </div>
+</div>
+
+<!-- ============ LOGIN ============ -->
+<div id="login-screen" class="hidden min-h-screen flex items-center justify-center p-4">
+  <div class="modal-card w-full max-w-sm p-6 sm:p-7">
+    <div class="micro">Royal Tasks · internal</div>
+    <h1 class="text-2xl font-black tracking-tight mt-1">ROYAL TASKS</h1>
+    <p class="text-sm opacity-70 mt-1.5 leading-relaxed">
+      No public signup — accounts are assigned by the administrator.
+    </p>
+    <form id="login-form" class="flex flex-col gap-2.5 mt-5" autocomplete="on">
+      <label class="micro" for="login-user">Username</label>
+      <input id="login-user" name="username" class="input" placeholder="username"
+             autocomplete="username" autocapitalize="none" spellcheck="false" required />
+      <label class="micro mt-1" for="login-pass">Password</label>
+      <input id="login-pass" name="password" type="password" class="input" placeholder="password"
+             autocomplete="current-password" required />
+      <button class="btn btn-primary mt-2" type="submit">Sign in</button>
+      <div id="login-error" role="alert" class="text-sm font-semibold empty:hidden" style="color:var(--danger)"></div>
+      <button type="button" id="login-forgot" class="link-btn" hidden>Forgot your password?</button>
+    </form>
+    <!-- Forgotten password: a link to the account's email address. -->
+    <form id="forgot-form" class="flex flex-col gap-2.5 mt-5" hidden>
+      <p class="text-sm leading-relaxed">Enter your username or email address. If your account has an email address, we send it a link to sign in and choose a new password.</p>
+      <label class="micro" for="forgot-login">Username or email</label>
+      <input id="forgot-login" class="input" autocomplete="username" autocapitalize="none" spellcheck="false" required />
+      <button class="btn btn-primary mt-2" type="submit">Send me a link</button>
+      <p id="forgot-status" role="status" class="text-sm empty:hidden"></p>
+      <button type="button" id="forgot-back" class="link-btn">Back to sign in</button>
+    </form>
+    <p class="app-credit mt-6">
+      Developed by Jesper Juul · © 2026
+    </p>
+  </div>
+</div>
+
+<!-- ============ A LINK FROM AN EMAIL: an invitation, or a new password ============ -->
+<div id="account-screen" class="hidden min-h-screen flex items-center justify-center p-4">
+  <div class="modal-card w-full max-w-sm p-6 sm:p-7" id="account-card"></div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="hidden h-dvh flex flex-col">
+  <header class="app-header flex items-center gap-2 px-3 sm:px-4 py-2.5">
+    <button id="btn-menu" class="btn btn-header btn-icon lg:hidden" aria-label="Boards menu" aria-expanded="false">
+      <span aria-hidden="true">☰</span>
+    </button>
+    <div class="font-black tracking-tight whitespace-nowrap">♛ <span class="hidden xs:inline">ROYAL</span> TASKS</div>
+    <!-- On a desktop the board list is a dropdown; below lg it is the ☰ drawer. -->
+    <button id="btn-boards" class="btn btn-header hidden lg:inline-flex" aria-haspopup="true" aria-expanded="false" aria-controls="sidebar">
+      Boards <span aria-hidden="true">▾</span>
+    </button>
+    <button id="btn-mytasks" class="btn btn-mytasks" title="Your tasks, and every card with a finish date">
+      <span aria-hidden="true">✔</span><span class="hidden sm:inline">My tasks</span>
+      <span class="badge" id="mytasks-count">0</span>
+    </button>
+
+    <div class="flex-1"></div>
+
+    <button id="poll-rate" type="button" class="poll-rate hidden md:inline text-xs font-mono" aria-label="Sync rate"></button>
+    <span id="board-counts" class="hidden md:inline text-xs font-mono" style="color:color-mix(in oklab, #fff 70%, transparent)"></span>
+    <span class="hidden sm:flex items-center gap-2 text-xs font-mono" id="live" title="Live sync status">
+      <span id="live-dot" class="live-dot"></span><span id="live-text">live</span>
+    </span>
+    <div class="flex items-center gap-1.5">
+      <button id="btn-admin" class="btn btn-header hidden">Users</button>
+      <!-- The signed-in user: a menu with the account actions. -->
+      <div class="menu">
+        <button id="btn-user" class="btn btn-header" aria-haspopup="true" aria-expanded="false" aria-controls="user-menu" title="Account">
+          <span id="user-avatar" class="avatar avatar-sm" aria-hidden="true">👤</span>
+          <span id="user-badge" class="hidden sm:inline max-w-[12rem] truncate"></span>
+          <span aria-hidden="true">▾</span>
+        </button>
+        <div class="menu-panel" id="user-menu" role="menu" hidden>
+          <button class="menu-item" role="menuitem" id="btn-profile"><span class="menu-icon" aria-hidden="true">👤</span>Profile</button>
+          <button class="menu-item" role="menuitem" id="btn-prefs"><span class="menu-icon" aria-hidden="true">⚙</span>Preferences</button>
+          <button class="menu-item" role="menuitem" id="btn-password"><span class="menu-icon" aria-hidden="true">🔑</span>Password</button>
+          <button class="menu-item" role="menuitem" id="btn-logout"><span class="menu-icon" aria-hidden="true">⎋</span>Logout</button>
+          <div class="menu-sep" role="separator"></div>
+          <a class="menu-credit" id="mi-credit" role="menuitem" href="https://github.com/RealRules/royal-tasks" target="_blank" rel="noopener noreferrer">
+            <span class="menu-credit-name">Developed by Jesper Juul · © 2026</span>
+            <span class="menu-credit-site">Royal Tasks on GitHub</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+  <!-- Shown while the server cannot be reached (and briefly when it is back). -->
+  <div id="conn-banner" class="conn-banner" role="alert" hidden>
+    <span class="conn-icon" aria-hidden="true">⚠</span>
+    <span id="conn-text" class="flex-1">No connection to the server.</span>
+    <button id="conn-retry" type="button" class="btn conn-retry">Try again</button>
+  </div>
+
+  <div class="flex flex-1 min-h-0">
+    <!-- sidebar / boards drawer -->
+    <div id="sidebar-scrim" class="sidebar-scrim hidden lg:hidden"></div>
+    <aside id="sidebar" class="sidebar gap-2 p-3 shrink-0">
+      <div class="flex items-center gap-2">
+        <span class="micro flex-1">Boards</span>
+        <button id="btn-new-board" class="btn btn-primary">+ New</button>
+        <button id="btn-close-sidebar" class="btn btn-ghost btn-icon lg:hidden" aria-label="Close menu">
+          <span aria-hidden="true">✕</span>
+        </button>
+      </div>
+      <input type="file" id="import-file" accept="application/json,.json" class="hidden" />
+      <input type="file" id="board-bg-file" accept="image/*" class="hidden" />
+      <div id="board-list" class="flex flex-col gap-2 overflow-y-auto -mx-1 px-1 py-1"></div>
+      <div class="micro mt-auto pt-3 leading-relaxed border-t" style="border-color:var(--line)">
+        <span data-build-stamp title="Build time"></span>
+      </div>
+    </aside>
+
+    <!-- main -->
+    <main class="flex-1 flex flex-col min-w-0 min-h-0">
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 pt-3 pb-1">
+        <h2 id="board-title" class="text-xl sm:text-2xl font-black tracking-tight on-board truncate max-w-full">—</h2>
+        <span id="board-meta" class="micro on-board-muted"></span>
+        <div class="flex-1"></div>
+        <div id="board-actions" class="flex flex-wrap gap-1.5"></div>
+      </div>
+      <!-- Ctrl+F: find text on the board. Cards that do not match fade. -->
+      <div id="find-bar" class="find-bar" role="search" hidden>
+        <span aria-hidden="true">🔍</span>
+        <input id="find-input" class="input" type="search" placeholder="Find on this board…" aria-label="Find on this board" autocomplete="off" />
+        <span id="find-count" class="micro" aria-live="polite"></span>
+        <button class="btn btn-ghost btn-icon" id="find-prev" title="Previous (Shift+Enter)" aria-label="Previous match">↑</button>
+        <button class="btn btn-ghost btn-icon" id="find-next" title="Next (Enter)" aria-label="Next match">↓</button>
+        <button class="btn btn-ghost btn-icon" id="find-close" title="Close (Esc)" aria-label="Close find">✕</button>
+      </div>
+      <div id="lists" class="board-surface flex-1 min-h-0 gap-2 p-2 pt-2"></div>
+    </main>
+  </div>
+</div>
+
+<!-- modals / toasts -->
+<div id="card-modal" class="hidden fixed inset-0 z-50 items-start md:items-center justify-center overflow-y-auto py-6"></div>
+<div id="share-modal" class="hidden fixed inset-0 z-50 items-start md:items-center justify-center overflow-y-auto py-6"></div>
+<div id="admin-modal" class="hidden fixed inset-0 z-50 items-start md:items-center justify-center overflow-y-auto py-6"></div>
+<div id="archive-modal" class="hidden fixed inset-0 z-50 items-start md:items-center justify-center overflow-y-auto py-6"></div>
+<div id="mytasks-modal" class="hidden fixed inset-0 z-50 items-start md:items-center justify-center overflow-y-auto py-6"></div>
+<div id="labels-modal" class="hidden fixed inset-0 z-[62] items-start md:items-center justify-center overflow-y-auto py-6"></div>
+<div id="inbox-modal" class="hidden fixed inset-0 z-50 items-start md:items-center justify-center overflow-y-auto py-6"></div>
+<div id="profile-modal" class="hidden fixed inset-0 z-[60] items-start md:items-center justify-center overflow-y-auto py-6"></div>
+<div id="prefs-modal" class="hidden fixed inset-0 z-[60] items-start md:items-center justify-center overflow-y-auto py-6"></div>
+<div id="password-modal" class="hidden fixed inset-0 z-[60] items-start md:items-center justify-center overflow-y-auto py-6"></div>
+<div id="viewer-modal" class="hidden fixed inset-0 z-[65] items-center justify-center" role="dialog" aria-modal="true" aria-label="Attachment viewer"></div>
+<div id="cover-modal" class="hidden fixed inset-0 z-[66] items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Title image"></div>
+<div id="confirm-modal" class="hidden fixed inset-0 z-[70] items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-labelledby="confirm-msg"></div>
+<div id="toasts" class="fixed z-[100] flex flex-col gap-2 items-end" style="right:16px;bottom:calc(16px + env(safe-area-inset-bottom))"></div>
+
+<script src="assets/js/build.js"></script>
+<script src="assets/js/api-client.js"></script>
+<script src="assets/js/crypto.js"></script>
+<script src="assets/js/e2e.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/markdown.js"></script>
+<script src="assets/js/dragdrop.js"></script>
+<script src="assets/js/viewers.js"></script>
+<script src="assets/js/card-modal.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/boot.js"></script>
+</body>
+</html>
