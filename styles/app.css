@@ -1,0 +1,1461 @@
+@import "tailwindcss";
+
+/* Scan the shipped app for utility classes. Tailwind is compiled to a static
+   stylesheet at build time — no CDN script, so the page needs no
+   'unsafe-eval' and works offline. */
+@source "../public/index.html";
+@source "../public/assets/js";
+
+/* ------------------------------------------------------------------
+   Royal Kanban — "Clean Utility" theme.
+   High contrast, functional, professional. Board colour schemes live on
+   [data-scheme]; every scheme declares its own on-board text colours so
+   light and dark boards work through the same rules.
+   ------------------------------------------------------------------ */
+
+@theme {
+  --font-sans: Inter, ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-paper: var(--paper);
+  --color-surface: var(--card);
+  --color-accent: var(--accent);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+
+  /* List and card corner radius. Tighter than before: the cards read as
+     blocks rather than pills. */
+  --radius-card: 7px;
+
+  --breakpoint-xs: 26rem;
+}
+
+:root {
+  color-scheme: light;
+
+  --ink: #0f141b;
+  --ink-soft: #3d4654;
+  --muted: #6b7686;
+  --line: #dde3ea;
+  --line-strong: #0f141b;
+  --paper: #f4f6f8;
+  --card: #ffffff;
+  --card-2: #f8fafc;
+  --accent: #1a56db;
+  --accent-ink: #ffffff;
+  --board-bg: #e8edf2;
+  --list-bg: #cbd4de;
+  --on-board: #0f141b;
+  --on-board-muted: #55606f;
+  --ok: #057a3d;
+  --warn: #b45309;
+  --danger: #c81e1e;
+
+  --r-sm: 8px;
+  --r: 12px;
+  --r-lg: 16px;
+
+  /* Layered, low-spread shadows read as depth rather than as a drop shadow. */
+  --shadow-sm: 0 1px 2px rgb(15 20 27 / .06), 0 1px 1px rgb(15 20 27 / .04);
+  --shadow: 0 2px 4px rgb(15 20 27 / .06), 0 8px 20px -10px rgb(15 20 27 / .28);
+  --shadow-lg: 0 8px 16px -6px rgb(15 20 27 / .18), 0 24px 48px -24px rgb(15 20 27 / .45);
+  --ring: 0 0 0 3px color-mix(in oklab, var(--accent) 35%, transparent);
+
+  --header-bg: #0f141b;
+  --header-ink: #ffffff;
+  --grid-line: rgb(15 20 27 / .04);
+}
+
+/* Board colour schemes ------------------------------------------------ */
+[data-scheme="indigo"] {
+  --board-bg: #e5eafc; --list-bg: #c3d0f4; --accent: #1a56db; --accent-ink: #fff;
+  --on-board: #10193a; --on-board-muted: #4b5a86;
+}
+[data-scheme="amber"] {
+  --board-bg: #fbf0d3; --list-bg: #f0dda9; --accent: #92400e; --accent-ink: #fff;
+  --on-board: #34210a; --on-board-muted: #6d5730;
+}
+[data-scheme="rose"] {
+  --board-bg: #fbe4e9; --list-bg: #f3c5d0; --accent: #be123c; --accent-ink: #fff;
+  --on-board: #3d0716; --on-board-muted: #7a3b4c;
+}
+[data-scheme="cyan"] {
+  --board-bg: #d9f1f7; --list-bg: #b6e2ec; --accent: #0e7490; --accent-ink: #fff;
+  --on-board: #06272f; --on-board-muted: #3a6773;
+}
+/* Plain grey: no tint anywhere, a neutral grey board and lists. */
+[data-scheme="grey"] {
+  --board-bg: #d4d6d9; --list-bg: #e8e9eb; --accent: #52525b; --accent-ink: #fff;
+  --on-board: #18181b; --on-board-muted: #52525b;
+}
+/* Solitaire (id palmbeach, its first name): a green board, light grey lists, white cards. The board text
+   is light (on the green); inside a list it is dark again (on the grey). */
+[data-scheme="palmbeach"] {
+  --board-bg: #509038; --list-bg: #e6e8eb; --accent: #3f7a2b; --accent-ink: #fff;
+  --on-board: #f6fbf3; --on-board-muted: #dcebd3;
+  /* No grid: a plain green. */
+  --grid-line: transparent;
+}
+[data-scheme="palmbeach"] .list { --on-board: #1c2620; --on-board-muted: #56635b; }
+
+/* Dark: a near-black board with dark lists and cards. Only the board goes
+   dark: the header, menus and dialogs keep the light palette. The card
+   colours are set on the board (and the card that follows a drag), and the
+   text colour with them, since the body's was worked out in the light. */
+[data-scheme="dark"] {
+  --board-bg: #0d1117; --list-bg: #161b22; --accent: #2f81f7; --accent-ink: #fff;
+  --on-board: #e6edf3; --on-board-muted: #8b949e;
+  --grid-line: rgb(255 255 255 / .035);
+}
+[data-scheme="dark"] :is(#lists, .drag-layer) {
+  --card: #21262d; --card-2: #2a313b; --ink: #e6edf3; --ink-soft: #c9d1d9; --muted: #8b949e;
+  --line: #30363d; --line-strong: #8b949e;
+  color: var(--ink);
+}
+
+/* Synthwave: a night sky going from deep blue to violet, a neon pink grid,
+   lists edged in cyan glow, hot pink as the accent. */
+[data-scheme="synthwave"] {
+  --board-bg: #1a0933; --list-bg: rgb(30 10 58 / .86); --accent: #ff2a6d; --accent-ink: #fff;
+  --on-board: #ffe6f2; --on-board-muted: #c9a3e6;
+  --grid-line: rgb(255 42 109 / .2);
+}
+body[data-scheme="synthwave"]:not([data-has-bg]) {
+  background: linear-gradient(180deg, #0b0221 0%, #24074a 55%, #5a1468 100%) fixed;
+}
+[data-scheme="synthwave"] :is(#lists, .drag-layer) {
+  --card: #2a1150; --card-2: #341661; --ink: #f8f0ff; --ink-soft: #e2d2f7; --muted: #b79ad8;
+  --line: #4b2a80; --line-strong: #05d9e8;
+  color: var(--ink);
+}
+[data-scheme="synthwave"] .list {
+  border-color: rgb(5 217 232 / .5);
+  box-shadow: 0 0 18px -6px rgb(5 217 232 / .6);
+}
+[data-scheme="synthwave"] #board-title { text-shadow: 0 0 10px rgb(255 42 109 / .9), 0 0 24px rgb(255 42 109 / .5); }
+[data-scheme="synthwave"] #lists .card:hover { border-color: #05d9e8; }
+
+/* Always the light palette: the app does not follow the system's dark mode. */
+
+/* ------------------------------------------------------------------
+   Base
+   ------------------------------------------------------------------ */
+@layer base {
+  * { box-sizing: border-box; }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    background: var(--board-bg);
+    color: var(--ink);
+    transition: background-color .35s ease;
+    /* Keep content clear of notches and home indicators in standalone PWA mode. */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    overscroll-behavior-y: none;
+  }
+
+  /* Faint technical grid, the signature of the original theme. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  /* A board background image is applied as an inline style on <body>; the grid
+     would fight it, so it is dropped, and a scrim keeps list text readable. */
+  body[data-has-bg]::before {
+    background-image: none;
+  }
+  body[data-has-bg] {
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
+  body[data-has-bg]::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background: linear-gradient(rgb(0 0 0 / .18), rgb(0 0 0 / .28));
+  }
+
+  #app, #login-screen { position: relative; z-index: 1; }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection { background: color-mix(in oklab, var(--accent) 28%, transparent); }
+
+  /* Thin, unobtrusive scrollbars. */
+  * { scrollbar-width: thin; scrollbar-color: color-mix(in oklab, var(--ink) 35%, transparent) transparent; }
+  ::-webkit-scrollbar { height: 10px; width: 10px; }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--ink) 30%, transparent);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: color-mix(in oklab, var(--ink) 50%, transparent); background-clip: content-box; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+}
+
+/* ------------------------------------------------------------------
+   Components
+   ------------------------------------------------------------------ */
+@layer components {
+  .micro {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    box-shadow: var(--shadow-sm);
+  }
+  .panel-strong {
+    border-color: color-mix(in oklab, var(--line-strong) 55%, var(--line));
+    box-shadow: var(--shadow);
+  }
+
+  /* Buttons ---------------------------------------------------------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 38px;
+    padding: 8px 13px;
+    border: 1px solid color-mix(in oklab, var(--line-strong) 45%, var(--line));
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--ink);
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 1.2;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: var(--shadow-sm);
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease,
+                transform .12s ease, box-shadow .15s ease;
+  }
+  .btn:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--ink) 8%, var(--card));
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+  }
+  .btn:active:not(:disabled) { transform: translateY(0); box-shadow: var(--shadow-sm); }
+  .btn:focus-visible { box-shadow: var(--ring); outline: none; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+  .btn-primary {
+    background: var(--accent);
+    border-color: color-mix(in oklab, var(--accent) 75%, black);
+    color: var(--accent-ink);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--accent) 85%, black);
+    color: var(--accent-ink);
+  }
+
+  .btn-danger { border-color: color-mix(in oklab, var(--danger) 55%, var(--line)); color: var(--danger); }
+  .btn-danger:hover:not(:disabled) { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+  .btn-ghost { background: transparent; border-color: var(--line); box-shadow: none; }
+  .btn-ghost:hover:not(:disabled) { background: color-mix(in oklab, var(--ink) 7%, transparent); }
+
+  /* Board "Manage" menu: a button that opens a small action list. */
+  .menu { position: relative; display: inline-block; }
+  .menu-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 40;
+    min-width: 190px;
+    padding: 4px;
+    background: var(--card);
+    border: 1.5px solid var(--line-strong);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .menu-panel[hidden] { display: none; }
+  /* A menu whose button sits at the left (the card's Labels) opens to the
+     right; the default, aligned to the button's right edge, would run off
+     the left of the dialog. */
+  .menu-panel.menu-start { right: auto; left: 0; }
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .menu-item:hover:not(:disabled) { background: color-mix(in oklab, var(--ink) 8%, transparent); }
+  .menu-item:disabled { opacity: .45; cursor: not-allowed; }
+  .menu-item .menu-icon { width: 1.1em; text-align: center; }
+  .menu-item.danger { color: var(--danger); }
+  .menu-item.danger:hover:not(:disabled) { background: var(--danger); color: #fff; }
+  .menu-sep { height: 1px; margin: 3px 6px; background: var(--line); }
+
+  /* Who made the app: under the sign-in form, and at the foot of the user
+     menu. Quiet; the website is a link. */
+  .app-credit {
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+    color: var(--muted);
+  }
+  .menu-credit {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 6px 10px 5px;
+    border-radius: 7px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.35;
+    text-decoration: none;
+  }
+  .menu-credit:hover, .menu-credit:focus-visible { background: color-mix(in oklab, var(--ink) 8%, transparent); color: var(--ink); }
+  .menu-credit-site { text-decoration: underline; text-underline-offset: 2px; }
+
+  /* A line of information at the foot of a menu (the card's id): not a
+     command, so quiet and selectable. */
+  .menu-note {
+    padding: 6px 10px 4px;
+    font: 600 11px/1.3 var(--font-mono);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    user-select: text;
+  }
+
+  /* Buttons sitting on the dark header bar. */
+  .btn-header {
+    background: color-mix(in oklab, #fff 10%, transparent);
+    border-color: color-mix(in oklab, #fff 28%, transparent);
+    color: var(--header-ink);
+    box-shadow: none;
+  }
+  .btn-header:hover:not(:disabled) { background: color-mix(in oklab, #fff 22%, transparent); color: var(--header-ink); }
+
+  .btn-icon { padding: 8px; min-width: 38px; }
+  /* A slightly shorter button, for section headers (Attach files, + Checklist). */
+  .btn-sm { min-height: 30px; padding: 4px 11px; font-size: 12px; }
+
+  /* Form controls ---------------------------------------------------- */
+  .input, .textarea, .select {
+    width: 100%;
+    min-height: 38px;
+    border: 1px solid color-mix(in oklab, var(--line-strong) 40%, var(--line));
+    border-radius: 10px;
+    padding: 8px 11px;
+    font-family: inherit;
+    font-size: 14px;
+    background: var(--card);
+    color: var(--ink);
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .input::placeholder, .textarea::placeholder { color: var(--muted); }
+  .textarea { min-height: 96px; resize: vertical; line-height: 1.55; }
+  .input:focus, .textarea:focus, .select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: var(--ring);
+  }
+  .input:disabled, .textarea:disabled, .select:disabled {
+    background: var(--card-2);
+    color: var(--muted);
+    cursor: not-allowed;
+  }
+  /* An input that reads as plain text (a checklist title): no box until it
+     is hovered or focused for editing. */
+  .input.input-bare {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    min-height: 30px;
+  }
+  .input.input-bare:hover:not(:disabled) { border-color: var(--line); }
+  .input.input-bare:focus { border-color: var(--accent); background: var(--card); box-shadow: var(--ring); }
+  .input.input-bare:disabled { background: transparent; color: var(--ink); cursor: default; }
+  /* The card dialog's title: plain text that edits in place, no box. */
+  .input.input-bare.cm-title { padding-left: 0; padding-right: 0; min-height: 36px; }
+  .input.input-bare.cm-title:hover:not(:disabled) { border-color: transparent; }
+  .input.input-bare.cm-title:focus { padding-left: 8px; padding-right: 8px; }
+  .input.cm-due { width: auto; min-height: 32px; padding: 4px 10px; }
+  /* A comment that has just been posted, briefly marked. */
+  .just-added { animation: just-added 1.4s ease; }
+  @keyframes just-added { from { box-shadow: 0 0 0 2px var(--accent); } to { box-shadow: 0 0 0 0 transparent; } }
+
+  /* A checklist item: a plain row, no box. The delete button appears on hover
+     (always on touch screens). */
+  .check-item { border-radius: 6px; cursor: grab; }
+  /* Added on screen, not yet saved: shown, but not yet to be ticked or edited. */
+  .check-item.pending { opacity: .6; }
+  .check-item.pending .item-who-wrap { pointer-events: none; }
+  .check-item:hover { background: color-mix(in oklab, var(--ink) 5%, transparent); }
+  /* A checklist item is dragged by its grip, shown on hover (always by touch). */
+  .check-item .item-grip {
+    cursor: grab;
+    color: var(--muted);
+    padding: 0 2px;
+    font-size: 13px;
+    line-height: 1;
+    opacity: 0;
+    touch-action: none;
+    user-select: none;
+    transition: opacity .12s ease;
+  }
+  .check-item:hover .item-grip, .check-item:focus-within .item-grip { opacity: 1; }
+  @media (hover: none) { .check-item .item-grip { opacity: .7; } }
+  /* By touch the grip is a finger-sized target (the row's height is kept),
+     and holding a row to drag it must not select its text or open a menu. */
+  @media (pointer: coarse) {
+    .check-item .item-grip { padding: 10px 8px; margin: -10px -4px; font-size: 16px; }
+    .check-item { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+    .check-item .check-edit { -webkit-user-select: text; user-select: text; }
+  }
+  /* The row of the item being dragged is the gap it would drop into. */
+  .check-item.item-dragging {
+    background: color-mix(in oklab, var(--accent) 10%, transparent);
+    outline: 2px dashed var(--accent);
+    outline-offset: -2px;
+    border-radius: 6px;
+  }
+  .check-item.item-dragging > * { visibility: hidden; }
+  /* The item in the hand: a copy that follows the pointer (dragItem). */
+  .item-drag-layer {
+    position: fixed; top: 0; left: 0; z-index: 300;
+    margin: 0; pointer-events: none;
+    background: var(--card);
+    border-radius: 8px;
+    outline: 1.5px solid var(--accent);
+    box-shadow: var(--shadow);
+    transition: box-shadow .15s ease, scale .15s ease;
+    will-change: translate;
+  }
+  .item-drag-layer .item-grip, .item-drag-layer .item-del { opacity: 1; }
+  .item-drag-layer.lifted { scale: 1.03; box-shadow: var(--shadow-lg); }
+  .item-drag-layer.settling { transition: translate .2s cubic-bezier(.2, .9, .3, 1.2), scale .2s ease, box-shadow .2s ease; }
+  /* A closed hand everywhere while an item is held. */
+  .item-drag-active, .item-drag-active * { cursor: grabbing !important; }
+  /* While dragging, an empty checklist still has room to drop into. */
+  .items-dragging [data-items] { min-height: 26px; }
+  .items-dragging { user-select: none; }
+
+  /* An item's text is edited by clicking it. */
+  .check-item .check-text-edit { cursor: text; }
+  .check-item .check-edit { padding: 3px 8px; font-size: 14px; }
+  /* An item that is a web address: the site's icon and the page's title. */
+  .check-item .item-link { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .check-item .item-link a {
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--accent, #2563eb); text-decoration: none; font-weight: 500;
+  }
+  .check-item .item-link a:hover { text-decoration: underline; }
+  .check-item .item-favicon {
+    flex: none; width: 16px; height: 16px; border-radius: 3px;
+    font-size: 13px; line-height: 16px; text-align: center; object-fit: contain;
+  }
+  .check-item .item-del {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    padding: 2px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .12s ease;
+  }
+  .check-item:hover .item-del, .check-item:focus-within .item-del { opacity: 1; }
+  .check-item .item-del:hover:not(:disabled) { background: var(--danger); color: #fff; }
+  @media (hover: none) { .check-item .item-del { opacity: 1; } }
+
+  /* Comments keep their line breaks; the box to write one grows as it fills. */
+  .cm-comment-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .cm-comment-input { resize: none; min-height: 40px; max-height: 240px; line-height: 1.4; overflow-y: auto; }
+  .comment-del {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    padding: 2px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .12s ease;
+  }
+  [data-comment]:hover .comment-del, [data-comment]:focus-within .comment-del { opacity: 1; }
+  .comment-del:hover { background: var(--danger); color: #fff; }
+  .comment-del[data-edit-comment]:hover { background: var(--accent); color: #fff; }
+
+  /* "Done" on a box being edited: a round ✓ inside its right edge, shown
+     while the box has the focus. Pressing it saves and leaves the box. */
+  .done-wrap { position: relative; display: flex; min-width: 0; }
+  .done-wrap > :first-child { flex: 1; min-width: 0; padding-right: 34px; }
+  .done-btn {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    width: 24px; height: 24px; border-radius: 999px; border: 0;
+    display: none; align-items: center; justify-content: center;
+    background: var(--ok); color: #fff; font-weight: 800; font-size: 13px; line-height: 1;
+    cursor: pointer; box-shadow: var(--shadow-sm); z-index: 2;
+    animation: done-in .15s ease-out;
+  }
+  .done-wrap.multi .done-btn { top: auto; bottom: 6px; transform: none; }
+  .done-wrap:focus-within .done-btn { display: flex; }
+  .done-btn:hover { filter: brightness(1.1); }
+  @keyframes done-in { from { opacity: 0; scale: .6; } to { opacity: 1; scale: 1; } }
+  /* The box that took the edit: a green ring that fades, and a ✓ badge. */
+  .saved-flash { position: relative; animation: saved-ring 1.3s ease-out; }
+  .saved-flash::after {
+    content: "✓"; position: absolute; top: -8px; right: -8px; z-index: 3;
+    width: 20px; height: 20px; border-radius: 999px; display: grid; place-items: center;
+    background: var(--ok); color: #fff; font-size: 12px; font-weight: 800;
+    animation: saved-badge 1.3s ease-out forwards; pointer-events: none;
+  }
+  @keyframes saved-ring {
+    0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--ok) 70%, transparent); border-color: var(--ok); }
+    40% { box-shadow: 0 0 0 5px color-mix(in oklab, var(--ok) 30%, transparent); border-color: var(--ok); }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+  @keyframes saved-badge { 0% { opacity: 0; scale: .4; } 15% { opacity: 1; scale: 1.15; } 30% { scale: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+
+  /* A link-looking button (Forgot your password?, Back to sign in). */
+  .link-btn { background: none; border: 0; padding: 2px 0; color: var(--accent); font-size: 13px; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; align-self: flex-start; }
+  .link-btn[hidden] { display: none; }
+  #login-form[hidden], #forgot-form[hidden] { display: none; }
+
+  /* Preferences: the calendar subscription. */
+  .cal-note { font-size: 12px; line-height: 1.45; color: var(--muted); }
+  .cal-note a { color: var(--accent); text-decoration: underline; }
+  .cal-fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+  .cal-choice { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; cursor: pointer; }
+  .cal-choice input { margin-top: 3px; }
+  .cal-boards { display: flex; flex-direction: column; gap: 4px; padding-left: 22px; max-height: 180px; overflow-y: auto; }
+  /* A card's calendar name (end-to-end boards). */
+  .cm-calname { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+  .cm-calname[hidden] { display: none; }
+  .cm-calname > label { flex: 1; min-width: 0; }
+  .cm-calname-note { flex-basis: 100%; }
+
+  /* No connection to the server: a bar nobody can miss, under the header. */
+  .conn-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.35;
+    animation: conn-in .25s ease-out;
+    z-index: 30;
+  }
+  .conn-banner[hidden] { display: none; }
+  .conn-banner.ok { background: var(--ok); }
+  .conn-icon { font-size: 16px; }
+  .conn-banner.ok .conn-icon { visibility: hidden; }
+  .conn-retry { background: #fff; color: var(--danger); border-color: #fff; padding: 4px 10px; font-size: 13px; }
+  @keyframes conn-in { from { transform: translateY(-100%); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  /* An attachment: its name gets the row's width (a phone squeezed it to
+     "P…" beside the uploader), who added it and the size sit underneath. */
+  .att-label { display: flex; flex-direction: column; gap: 1px; }
+  .att-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .att-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @media (hover: none) { .comment-del { opacity: 1; } }
+
+  /* Lists + cards ---------------------------------------------------- */
+  .list {
+    width: min(86vw, 300px);
+    flex: 0 0 min(86vw, 300px);
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    scroll-snap-align: start;
+    background: var(--list-bg);
+    border-color: color-mix(in oklab, var(--on-board) 18%, transparent);
+    /* The top is 30% tighter than the sides, to pull the title up. */
+    padding: 5.6px 8px 8px;
+  }
+  @media (min-width: 768px) {
+    .list { width: 300px; flex: 0 0 300px; }
+  }
+  .list-body {
+    overflow-y: auto;
+    /* Cards sit 8px from the list edge. The body reaches 4px into the list's
+       padding and pads it back, so the scroll box still has room for the card
+       shadow instead of clipping it. The small top padding plus the header's
+       4px puts the first card 6px under the title row. */
+    padding: 2px 4px 8px;
+    margin-inline: -4px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 12px;
+    scrollbar-width: thin;
+    /* Children must be allowed to shrink below their content width, or a long
+       word still widens them past the list. */
+    min-width: 0;
+  }
+  /* The list has a fixed height (the board fills the window), so its cards
+     scroll rather than squeeze: without this the drag placeholder, which has
+     no content to hold it open, shrank to a few pixels in a full list. */
+  .list-body > * { flex-shrink: 0; }
+
+  .card {
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+    padding: 9px 8px;
+    cursor: grab;
+    box-shadow: var(--shadow-sm);
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    /* A card is as wide as its list. A long unbroken token — a URL is the usual
+       one — cannot wrap on spaces, so without this it runs straight out of the
+       card. `anywhere` breaks inside the token, and it also lets the flex item
+       shrink instead of forcing the column wider. */
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+  /* The title sits in a flex row next to the hover actions. A flex item does
+     not shrink below its content's intrinsic width unless it is told to, so
+     `min-width: 0` is what actually lets a long URL wrap inside the card
+     rather than widening it. */
+  .card .card-title { min-width: 0; font-weight: 400; }
+  .card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  .card:focus-within { box-shadow: var(--ring); }
+  .card:active { cursor: grabbing; }
+  /* The card being dragged stays fully opaque and undistorted: the browser
+     snapshots this element for the floating drag image, so any fade or
+     transform here would show up in the thing under the cursor. The source
+     is marked with the accent colour and extra depth instead. */
+  .card.dragging {
+    opacity: 1;
+    border-color: var(--accent);
+    box-shadow: var(--shadow-lg);
+    cursor: grabbing;
+  }
+  /* Card head: the "Mark complete" tick, the title and the finish date. */
+  .card-check {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 5px;
+    background: var(--card);
+    color: transparent;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+    cursor: pointer;
+    transition: background .12s ease, border-color .12s ease, color .12s ease;
+  }
+  .card-check:hover:not(:disabled) { border-color: var(--ok); color: color-mix(in oklab, var(--ok) 45%, transparent); }
+  .card-check[aria-checked="true"] { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .card-check:disabled { cursor: default; }
+  .card-check.lg { width: 24px; height: 24px; font-size: 15px; border-radius: 6px; }
+  /* Title image: across the top of the card, and of the open card dialog. */
+  .card-cover { margin: -9px -8px 8px; overflow: hidden; border-radius: var(--radius-card) var(--radius-card) 0 0; }
+  .card-cover img { display: block; width: 100%; max-height: 150px; object-fit: cover; }
+  .card-cover[hidden], .cm-cover[hidden] { display: none; }
+
+  /* Labels. On the board a label is a strip of its colour (the name is the
+     tooltip); in the card dialog it is a chip with the name on the colour.
+     The strips share the line under the title with the badges and the
+     card's people (right-aligned). */
+  .card-labels { display: flex; flex-wrap: wrap; gap: 3px; }
+  .card-labels[hidden] { display: none; }
+  .card-label {
+    width: 24px;
+    height: 8px;
+    border-radius: 4px;
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / .08);
+  }
+  .cm-labels { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+  .cm-labels[hidden] { display: none; }
+  .cm-label-chips { display: contents; }
+  .cm-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 26px;
+    max-width: 100%;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  .cm-label-x {
+    border: 0;
+    background: none;
+    color: inherit;
+    opacity: .7;
+    cursor: pointer;
+    padding: 0 0 0 2px;
+    font-size: 11px;
+    line-height: 1;
+  }
+  .cm-label-x:hover { opacity: 1; }
+  .label-swatch { width: 14px; height: 14px; border-radius: 3px; flex: none; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .12); }
+  .label-kbd {
+    font: 600 11px/1 var(--font-mono, ui-monospace, monospace);
+    padding: 2px 5px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    color: var(--muted);
+  }
+  /* Manage board -> Labels: key, colour picker, name (shown on its colour), remove. */
+  .label-row { display: grid; grid-template-columns: 18px 44px minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+  .label-key { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--muted); text-align: center; }
+  .label-color {
+    width: 44px;
+    height: 34px;
+    padding: 2px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: var(--card);
+    cursor: pointer;
+  }
+  .label-name { font-weight: 700; }
+  .label-name::placeholder { color: inherit; opacity: .65; }
+  /* The card dialog: less room above the title than around the rest. */
+  .cm-card { padding: 12px 20px 20px; }
+  .cm-cover { margin: -12px -20px 14px; overflow: hidden; border-radius: var(--r-lg) var(--r-lg) 0 0; }
+  /* A user's picture, or their initials on a tint when there is none. */
+  .avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    border-radius: 999px;
+    overflow: hidden;
+    font-weight: 800;
+    letter-spacing: .02em;
+    background: color-mix(in oklab, var(--accent) 22%, var(--card));
+    color: var(--ink);
+  }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .avatar-sm { width: 22px; height: 22px; font-size: 9px; }
+  .avatar-xs { width: 20px; height: 20px; font-size: 8px; border: 1.5px solid var(--card); }
+  .avatar-more { background: var(--card-2); color: var(--muted); font-size: 9px; }
+
+  /* People on a card: on the board a row of small pictures at the foot of
+     the card; in the dialog chips with picture and name. */
+  /* Badges and people share one line under the title; the people keep to the
+     right and drop below only when the line is full. */
+  /* The sync rate in the header: invisible (but clickable) until clicked. */
+  .poll-rate {
+    color: color-mix(in oklab, #fff 70%, transparent);
+    background: none;
+    border: 0;
+    padding: 2px 4px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .2s ease;
+  }
+  .poll-rate.shown { opacity: 1; }
+  .poll-rate:focus-visible { opacity: 1; outline: 1px solid currentColor; border-radius: 4px; }
+  .card-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 6px; }
+  .card-foot:not(:has(> :not([hidden]))) { display: none; }
+  .card-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+  .card-badges[hidden] { display: none; }
+  .card-badges .badge { padding: 1px 6px; gap: 3px; }
+  .card-people { display: flex; margin-left: auto; }
+  .card-people[hidden] { display: none; }
+  .card-people .avatar + .avatar { margin-left: -5px; }
+  .cm-people { margin-top: 6px; }
+  .cm-person {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 26px;
+    padding: 2px 8px 2px 3px;
+    border-radius: 999px;
+    background: var(--card-2);
+    border: 1px solid var(--line);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .cm-person .cm-label-x { color: var(--muted); }
+  .menu-item .avatar { margin-right: 2px; }
+
+  /* A checklist item's assign button: the assignee's picture, or a faint
+     person shown on hover when nobody has it. */
+  .item-who {
+    border: 0;
+    background: transparent;
+    padding: 0 2px;
+    cursor: pointer;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+  }
+  .item-who .item-who-none { font-size: 12px; opacity: .35; filter: grayscale(1); }
+  .check-item .item-who:not(.has) { opacity: 0; transition: opacity .12s ease; }
+  .check-item:hover .item-who, .check-item:focus-within .item-who { opacity: 1; }
+  @media (hover: none) { .check-item .item-who:not(.has) { opacity: .6; } }
+  .item-who-wrap .menu-panel { min-width: 200px; }
+
+  /* My tasks: a button that stands out in the header, and its list. */
+  .btn.btn-mytasks {
+    background: var(--warn);
+    border-color: var(--warn);
+    color: #fff;
+    font-weight: 800;
+  }
+  .btn.btn-mytasks:hover { filter: brightness(1.08); }
+  .btn.btn-mytasks .badge { background: #fff; color: var(--warn); border-color: #fff; }
+  .mytasks-list { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; min-height: 0; }
+  .mytasks-head { padding: 10px 2px 2px; }
+  .mytasks-head:first-child { padding-top: 0; }
+  .mytasks-section { display: flex; flex-direction: column; gap: 4px; }
+  /* Rows line up whether or not they carry my picture. */
+  .mytask .avatar, .mytask .mytask-gap { width: 24px; height: 24px; flex: 0 0 24px; }
+  .app-header .btn.btn-mytasks { padding-inline: 10px; gap: 6px; }
+  .mytask {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    cursor: pointer;
+  }
+  .mytask:hover, .mytask:focus-visible { border-color: var(--accent); background: var(--card-2); }
+  .mytask-tick {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: 1.5px solid var(--line-strong);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .mytask.done .mytask-tick { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .mytask-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .mytask-name { font-weight: 700; overflow-wrap: anywhere; }
+  .mytask.done .mytask-name { text-decoration: line-through; opacity: .6; }
+  .mytask-where { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mytask-board { color: var(--ink); font-weight: 800; }
+  .avatar-lg { width: 72px; height: 72px; font-size: 24px; border: 1.5px solid var(--line-strong); }
+
+  /* Ctrl+F on the board: a bar above the lists; cards that do not match fade,
+     the current match is outlined. */
+  .find-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 12px 4px;
+    padding: 6px 8px;
+    max-width: 560px;
+    background: var(--card);
+    border: 1.5px solid var(--line-strong);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  .find-bar[hidden] { display: none; }
+  .find-bar .input { flex: 1; min-width: 0; padding-top: 6px; padding-bottom: 6px; }
+  .find-bar .micro { white-space: nowrap; }
+  .card.find-miss { opacity: .28; transition: opacity .15s ease; }
+  .card.find-hit { box-shadow: 0 0 0 2px var(--accent), var(--shadow-sm); }
+  .card.find-current { box-shadow: 0 0 0 3px var(--warn), var(--shadow); }
+
+  /* A checklist is its title, bar and items, without a box around them. */
+  .cm-checklist { padding: 2px 0; }
+  .cm-cover img { display: block; width: 100%; max-height: 240px; object-fit: cover; }
+  .cover-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+  .cover-choice { border: 2px solid transparent; border-radius: 8px; padding: 0; overflow: hidden; cursor: pointer; background: var(--card-2); aspect-ratio: 4 / 3; }
+  .cover-choice img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cover-choice:hover { border-color: var(--line-strong); }
+  .cover-choice.current { border-color: var(--accent); }
+
+  /* Open-link button beside a title that is a web address. */
+  .card-link {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1;
+    text-decoration: none;
+    opacity: .8;
+    transition: background .12s ease, opacity .12s ease;
+  }
+  .card-link:hover { opacity: 1; background: color-mix(in oklab, var(--ink) 10%, transparent); }
+  .card-link[hidden], #cm-due-clear[hidden] { display: none; }
+  .card-link.lg { width: 28px; height: 28px; font-size: 17px; }
+  .card.completed .card-title { color: var(--muted); }
+
+  /* Finish date, coloured by how close it is (never on a completed card):
+     today or overdue red, 1-3 days yellow, 4-7 days green. Light tints with
+     dark text, so they read the same in light and dark mode. */
+  .card-due {
+    flex: 0 0 auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--card-2);
+    color: var(--ink-soft);
+  }
+  .due-red { background: #fde2e1 !important; border-color: #f3b3b0 !important; color: #7f1d1d !important; }
+  .due-yellow { background: #fef3c7 !important; border-color: #f5d77a !important; color: #713f12 !important; }
+  .due-green { background: #dcfce7 !important; border-color: #9ee0b4 !important; color: #14532d !important; }
+
+  /* Shown until the app knows whether someone is signed in. */
+  /* The crown on the loading screens hops and sways: a crouch, a jump with
+     a tilt, a squashed landing, then the same to the other side. */
+  .loading-mark {
+    display: inline-block;
+    transform-origin: 50% 100%;
+    animation: crown-dance 1.6s cubic-bezier(.4, 0, .3, 1) infinite;
+  }
+  @keyframes crown-dance {
+    0%   { transform: translateY(0) rotate(0) scale(1, 1); }
+    8%   { transform: translateY(0) rotate(0) scale(1.12, .86); }
+    22%  { transform: translateY(-22px) rotate(-12deg) scale(.94, 1.08); }
+    36%  { transform: translateY(0) rotate(0) scale(1.1, .9); }
+    44%  { transform: translateY(0) rotate(0) scale(1, 1); }
+    58%  { transform: translateY(0) rotate(0) scale(1.12, .86); }
+    72%  { transform: translateY(-22px) rotate(12deg) scale(.94, 1.08); }
+    86%  { transform: translateY(0) rotate(0) scale(1.1, .9); }
+    100% { transform: translateY(0) rotate(0) scale(1, 1); }
+  }
+
+  /* Files dragged in from outside: the card (or open card dialog) under them
+     is outlined, and pulses while they upload. */
+  .card.file-drop, .modal-card.file-drop {
+    outline: 2px dashed var(--accent);
+    outline-offset: 2px;
+    background: color-mix(in oklab, var(--accent) 8%, var(--card));
+  }
+  .card.uploading, .modal-card.uploading { animation: uploading 1s ease-in-out infinite alternate; }
+  @keyframes uploading { from { opacity: 1; } to { opacity: .55; } }
+
+  /* Once the drag is under way the original leaves the list: the follower is
+     the card being moved, and the drop marker shows where it will go. */
+  .card.drag-source, .list.drag-source { display: none; }
+  .list.dragging { opacity: 1; box-shadow: var(--shadow-lg); }
+
+  /* The element that follows the cursor while dragging.
+     
+     This replaces the browser's drag image, which Chromium paints at its own
+     fixed alpha no matter what setDragImage is given — the reason a dragged
+     card looked see-through however opaque its source and its snapshot were.
+     This is an ordinary element, so its opacity is simply ours. */
+  .drag-layer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 200;
+    pointer-events: none;
+    opacity: 1;
+    margin: 0;
+    overflow: hidden;
+    max-height: 60vh;
+    background: var(--card);
+    border-color: var(--accent);
+    box-shadow: var(--shadow-lg);
+    /* No transition: the position is set every pointer move, and easing it
+       would make the card trail behind the cursor. */
+    transition: none;
+    /* Nor any animation it was cloned with: one that sets transform (the
+       lists' fade-in) overrides the position until it ends. */
+    animation: none;
+    transform: translate3d(-9999px, -9999px, 0);
+    will-change: transform;
+    cursor: grabbing;
+  }
+  .drag-layer.list { max-height: 70vh; }
+
+  .list.drop-target .list-body {
+    background: color-mix(in oklab, var(--on-board) 10%, transparent);
+    border-radius: var(--r-sm);
+    outline: 2px dashed color-mix(in oklab, var(--on-board) 45%, transparent);
+    outline-offset: -4px;
+  }
+  /* The placeholder for a dragged card, where it came from and where it would
+     land: the card's own height (set by the drag code), with no animation,
+     so the cards around it do not bounce as it moves. */
+  .card-drop-marker {
+    height: 46px;
+    border: 2px dashed var(--accent);
+    border-radius: var(--radius-card);
+    background: color-mix(in oklab, var(--accent) 10%, transparent);
+  }
+  /* A dropped card settles into its place: it comes down the last few pixels
+     with its lifted shadow and rests. Moved, never resized, so neither the
+     list nor the cards around it change size. */
+  .card.card-settle { animation: card-settle .3s cubic-bezier(.3, 1.3, .5, 1); }
+  @keyframes card-settle {
+    from { translate: 0 -6px; box-shadow: var(--shadow-lg); }
+    to { translate: 0 0; }
+  }
+
+  /* Where a dragged list will land. Lightweight: it moves during the drag
+     instead of the list itself, so the board is not reflowed on every
+     dragover event. */
+  .list-placeholder {
+    flex: 0 0 auto;
+    width: 288px;          /* the dragged list's size is set inline */
+    min-height: 160px;
+    max-height: 100%;
+    border: 2px dashed var(--accent);
+    border-radius: var(--radius-card);
+    background: color-mix(in oklab, var(--accent) 12%, transparent);
+    align-self: stretch;
+  }
+
+  /* Per-card quick actions, revealed on hover (always shown on touch). */
+
+
+  /* Indicators ------------------------------------------------------- */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 2px 8px;
+    background: var(--card-2);
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+  .badge.overdue { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .badge.done { background: var(--ok); border-color: var(--ok); color: #fff; }
+
+  .progress {
+    height: 6px;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--ink) 12%, transparent);
+    overflow: hidden;
+  }
+  .progress > div {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--accent);
+    transition: width .35s cubic-bezier(.4, 0, .2, 1);
+  }
+
+  .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in oklab, var(--ink) 30%, transparent);
+    display: inline-block;
+    flex: none;
+  }
+  .swatch-indigo { background: #1a56db; }
+  .swatch-amber { background: #b45309; }
+.swatch-rose { background: #be123c; }
+.swatch-cyan { background: #0e7490; }
+.swatch-grey { background: #8e9096; }
+.swatch-palmbeach { background: linear-gradient(135deg, #509038 55%, #e6e8eb 55%); }
+.swatch-dark { background: linear-gradient(135deg, #0d1117 55%, #2f81f7 55%); }
+.swatch-synthwave { background: linear-gradient(135deg, #ff2a6d, #7b2ff7 55%, #05d9e8); }
+
+  .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--ok);
+    display: inline-block;
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ok) 25%, transparent);
+  }
+  .live-dot.stale { background: var(--warn); box-shadow: 0 0 0 3px color-mix(in oklab, var(--warn) 25%, transparent); }
+
+  /* Chrome ----------------------------------------------------------- */
+  .app-header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: color-mix(in oklab, var(--header-bg) 88%, transparent);
+    backdrop-filter: blur(10px) saturate(140%);
+    color: var(--header-ink);
+    border-bottom: 1px solid color-mix(in oklab, #fff 12%, transparent);
+  }
+
+  .sidebar {
+    /* Set here, not with Tailwind's flex classes on the element: those are
+       utilities, which win over this layer, and the desktop dropdown below
+       must be able to hide it. */
+    display: flex;
+    flex-direction: column;
+    width: 290px;
+    background: color-mix(in oklab, var(--card) 92%, transparent);
+    backdrop-filter: blur(8px);
+    border-right: 1px solid var(--line);
+  }
+  /* Below lg the sidebar slides in over the board. */
+  @media (max-width: 1023px) {
+    .sidebar {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 45;
+      width: min(86vw, 320px);
+      transform: translateX(-100%);
+      transition: transform .25s cubic-bezier(.4, 0, .2, 1);
+      box-shadow: var(--shadow-lg);
+      padding-top: env(safe-area-inset-top);
+    }
+    .sidebar.open { transform: none; }
+  }
+  /* From lg up the board list is a dropdown under "Boards" in the header,
+     so the board has the whole width. Placed under its button by boot.js. */
+  @media (min-width: 1024px) {
+    .sidebar {
+      position: fixed;
+      top: var(--boards-top, 56px);
+      left: var(--boards-left, 12px);
+      z-index: 45;
+      width: 320px;
+      max-height: min(70vh, calc(100dvh - var(--boards-top, 56px) - 16px));
+      background: var(--card);
+      backdrop-filter: none;
+      border: 1.5px solid var(--line-strong);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+    }
+    .sidebar:not(.open) { display: none; }
+  }
+  .sidebar-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgb(15 20 27 / .5);
+    backdrop-filter: blur(2px);
+  }
+
+  .board-surface {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 16px;
+    overscroll-behavior-x: contain;
+    /* Snap fights programmatic scrolling: while a drag auto-scrolls the strip,
+       the browser re-snaps to the nearest list after each step and the scroll
+       goes nowhere. Snap is suspended for the duration of the drag. */
+    scroll-behavior: auto;
+    /* The way to the lists further right: full width, in the board's own
+       text colour, so it shows on a dark board as well as a light one (the
+       page-wide thin bar is drawn in the ink colour, invisible on dark). */
+    scrollbar-width: auto;
+    scrollbar-color: color-mix(in oklab, var(--on-board) 45%, transparent) color-mix(in oklab, var(--on-board) 8%, transparent);
+  }
+  body[data-dragging] .board-surface { scroll-snap-type: none; }
+
+  /* Board title and meta sit directly on the board colour. */
+  .on-board { color: var(--on-board); }
+  .on-board-muted { color: var(--on-board-muted); }
+  /* The board name and status sit straight on the board, which may be a
+     background picture. A halo in the board colour (light behind dark text,
+     dark behind light) keeps them readable on any picture, black included. */
+  #board-title, #board-meta {
+    --halo: var(--board-bg);
+    /* A solid 1px outline (the eight offsets) under a soft glow. */
+    text-shadow:
+      1px 0 0 var(--halo), -1px 0 0 var(--halo), 0 1px 0 var(--halo), 0 -1px 0 var(--halo),
+      1px 1px 0 var(--halo), -1px -1px 0 var(--halo), 1px -1px 0 var(--halo), -1px 1px 0 var(--halo),
+      0 0 4px var(--halo), 0 0 8px var(--halo), 0 0 12px var(--halo);
+  }
+  .list .micro { color: color-mix(in oklab, var(--on-board) 72%, transparent); }
+  .list [data-drag-list] { color: color-mix(in oklab, var(--on-board) 60%, transparent); }
+
+  /* The list header sits on the list colour, so its controls take the
+     on-board palette instead of the surface palette. */
+  .list [data-list-title] {
+    color: var(--on-board);
+    font-size: 14px;
+  }
+  .list [data-list-title]::placeholder { color: color-mix(in oklab, var(--on-board) 55%, transparent); }
+  .list [data-list-title]:focus {
+    background: var(--card);
+    color: var(--ink);
+    border-color: var(--accent);
+  }
+  .list [data-list-title]:disabled { background: transparent; color: var(--on-board); opacity: .85; }
+  .list [data-list-count] {
+    background: color-mix(in oklab, var(--on-board) 14%, transparent);
+    border-color: color-mix(in oklab, var(--on-board) 28%, transparent);
+    color: var(--on-board);
+  }
+  .list [data-list-menu-btn] {
+    /* Half the size of a standard icon button. */
+    width: 19px;
+    height: 19px;
+    min-width: 19px;
+    min-height: 19px;
+    padding: 0;
+    font-size: 12px;
+    line-height: 1;
+    color: color-mix(in oklab, var(--on-board) 65%, transparent);
+    border-color: color-mix(in oklab, var(--on-board) 22%, transparent);
+  }
+  .list [data-list-menu-btn]:hover,
+  .list [data-list-menu-btn][aria-expanded="true"] {
+    background: color-mix(in oklab, var(--on-board) 14%, transparent);
+    color: var(--on-board);
+  }
+  /* The list menu opens over the next list, so it must not be clipped to
+     the narrow list or hidden behind its neighbour. */
+  .list .menu-panel { min-width: 230px; white-space: nowrap; }
+
+  /* Attachment viewer ------------------------------------------------ */
+  /* Full screen on a phone; a large centred panel from sm up. The stage is
+     always dark so photos and video read the same in light and dark mode. */
+  .viewer {
+    background: #0d1117;
+    color: #e6edf3;
+    box-shadow: var(--shadow-lg);
+    animation: pop .22s cubic-bezier(.2, .9, .3, 1.2);
+  }
+  @media (min-width: 640px) {
+    .viewer { border-radius: var(--r-lg); overflow: hidden; }
+  }
+  .viewer-bar { background: rgb(255 255 255 / .06); border-bottom: 1px solid rgb(255 255 255 / .1); }
+  .viewer-bar .btn { color: #e6edf3; border-color: rgb(255 255 255 / .2); }
+  .viewer-bar .btn:hover:not(:disabled) { background: rgb(255 255 255 / .14); }
+  .viewer-bar .micro { color: rgb(230 237 243 / .7); }
+  /* Centred for a single picture or player. The layout lives here, not in
+     utility classes, so a renderer can override it below: utilities would win. */
+  .viewer-stage { padding: 12px; overflow: auto; display: flex; align-items: center; justify-content: center; }
+  .viewer-stage .micro { color: rgb(230 237 243 / .7); }
+  .viewer-media { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; }
+  .viewer-stage audio.viewer-media { width: min(100%, 520px); }
+  .viewer-text {
+    align-self: stretch;
+    width: 100%;
+    margin: 0;
+    padding: 12px 14px;
+    overflow: auto;
+    background: rgb(255 255 255 / .04);
+    border-radius: 6px;
+    font: 13px/1.5 var(--font-mono);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: #e6edf3;
+  }
+  .viewer-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 56px;
+    border-radius: 10px;
+    border: 1px solid rgb(255 255 255 / .2);
+    background: rgb(13 17 23 / .6);
+    color: #fff;
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .viewer-nav:hover { background: rgb(255 255 255 / .18); }
+  /* Renderers that fill the stage and scroll (PDF, documents) take it whole. */
+  /* Content taller than the stage scrolls from its top: centring it would push
+     the top out of reach. */
+  .viewer-stage[data-renderer="pdf"], .viewer-stage[data-renderer="docx"] { display: block; padding: 0; }
+  .viewer-pdf { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; padding: 12px; }
+  .viewer-pdf-page { background: #fff; box-shadow: 0 2px 10px rgb(0 0 0 / .45); max-width: 100%; }
+  .viewer-pdf-page canvas { display: block; max-width: 100%; height: auto !important; }
+  /* A converted document: dark text on a white page, whatever the theme. */
+  .viewer-doc {
+    width: min(100%, 820px);
+    margin: 12px auto;
+    padding: 32px 40px;
+    background: #fff;
+    color: #1b1f24;
+    border-radius: 4px;
+    font: 15px/1.6 Georgia, "Times New Roman", serif;
+    overflow-wrap: anywhere;
+  }
+  @media (max-width: 640px) { .viewer-doc { padding: 20px 18px; margin: 0; border-radius: 0; } }
+  .viewer-doc h1 { font-size: 1.6em; margin: .6em 0 .4em; }
+  .viewer-doc h2 { font-size: 1.35em; margin: .6em 0 .4em; }
+  .viewer-doc h3 { font-size: 1.15em; margin: .6em 0 .3em; }
+  .viewer-doc p { margin: 0 0 .7em; }
+  .viewer-doc ul { list-style: disc; padding-left: 1.6em; margin: 0 0 .7em; }
+  .viewer-doc ol { list-style: decimal; padding-left: 1.6em; margin: 0 0 .7em; }
+  .viewer-doc table { border-collapse: collapse; margin: .6em 0 1em; max-width: 100%; }
+  .viewer-doc td, .viewer-doc th { border: 1px solid #c8ced6; padding: 4px 8px; vertical-align: top; }
+  .viewer-doc img { max-width: 100%; height: auto; }
+  .viewer-doc a { color: #1a56db; text-decoration: underline; }
+  .viewer-nav[hidden] { display: none; }
+
+  /* Modals ----------------------------------------------------------- */
+  .modal-backdrop { background: rgb(15 20 27 / .55); backdrop-filter: blur(3px); }
+  .modal-card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-lg);
+    animation: pop .22s cubic-bezier(.2, .9, .3, 1.2);
+  }
+  @keyframes pop {
+    from { transform: translateY(12px) scale(.98); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+  .fade-in { animation: fadein .25s ease; }
+  @keyframes fadein {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* Toasts ----------------------------------------------------------- */
+  .toast {
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: var(--r);
+    padding: 11px 15px;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: var(--shadow-lg);
+    animation: fadein .2s ease;
+    max-width: min(90vw, 360px);
+  }
+  .toast.error { background: var(--danger); color: #fff; }
+  /* An attachment's thumbnail in the card dialog: the picture itself for
+     images, the type's icon otherwise, in the same square either way. */
+  .att-thumb {
+    width: 56px;
+    height: 56px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--card-2);
+    border: 1.5px solid var(--line);
+  }
+  .att-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  /* A toast that stays while something runs, with a bar under the text. */
+  .toast-progress { min-width: 240px; }
+  .toast-bar {
+    height: 4px;
+    margin-top: 8px;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--paper) 25%, transparent);
+    overflow: hidden;
+  }
+  .toast-bar > div {
+    height: 100%;
+    width: 0;
+    border-radius: 999px;
+    background: var(--paper);
+    transition: width .2s ease;
+  }
+  .toast.error .toast-bar { display: none; }
+
+  /* Rich-text description, rendered from sanitized nodes. */
+  .richtext { line-height: 1.6; overflow-wrap: anywhere; }
+  .richtext p { margin: 0 0 .6em; }
+  .richtext p:last-child { margin-bottom: 0; }
+  .richtext ul, .richtext ol { margin: 0 0 .6em; padding-left: 1.4em; }
+  .richtext ul { list-style: disc; }
+  .richtext ol { list-style: decimal; }
+  .richtext h1, .richtext h2, .richtext h3 { font-weight: 800; margin: .4em 0 .3em; line-height: 1.3; }
+  .richtext h1 { font-size: 1.3em; }
+  .richtext h2 { font-size: 1.15em; }
+  .richtext h3 { font-size: 1.05em; }
+  .richtext blockquote {
+    margin: 0 0 .6em;
+    padding-left: .8em;
+    border-left: 3px solid var(--line);
+    color: var(--ink-soft);
+  }
+  .richtext code {
+    font-family: var(--font-mono);
+    font-size: .9em;
+    background: var(--card-2);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 1px 5px;
+  }
+  .richtext pre {
+    background: var(--card-2);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    padding: 10px 12px;
+    overflow-x: auto;
+  }
+  .richtext pre code { background: none; border: 0; padding: 0; }
+  .richtext a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+  .richtext a:hover { text-decoration-thickness: 2px; }
+  .richtext hr { border: 0; border-top: 1px solid var(--line); margin: .8em 0; }
+}
+
+/* ------------------------------------------------------------------
+   Utilities
+   ------------------------------------------------------------------ */
+@layer utilities {
+  .scrollbar-none { scrollbar-width: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+}
