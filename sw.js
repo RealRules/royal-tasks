@@ -104,7 +104,18 @@ self.addEventListener("fetch", (e) => {
   if (e.request.method === "POST" && url.pathname.endsWith("/api/share-target.php")
       && e.request.mode === "navigate" && (e.request.destination === "document" || e.request.destination === "")) {
     const copy = e.request.clone(); // for the fallback: the body is read below
+    // A form another website submitted carries that site as its referrer; a
+    // share from the phone's share sheet has none. (A site can hide its
+    // referrer, so this is a filter, not a guarantee: the dialog still only
+    // adds a card the user chooses.)
+    let foreign = false;
+    try { foreign = !!e.request.referrer && new URL(e.request.referrer).origin !== self.location.origin; } catch { foreign = true; }
+    if (foreign) {
+      e.respondWith(Response.redirect("./index.html?share=foreign", 303));
+      return;
+    }
     e.respondWith((async () => {
+      let tooLarge = false;
       try {
         const form = await e.request.formData();
         const files = [];
@@ -112,7 +123,7 @@ self.addEventListener("fetch", (e) => {
         for (const f of form.getAll("files")) {
           if (f && typeof f === "object" && f.size !== undefined) {
             bytes += f.size;
-            if (bytes > SHARE_MAX_BYTES) throw new Error("share too large");
+            if (bytes > SHARE_MAX_BYTES) { tooLarge = true; throw new Error("share too large"); }
             files.push({ name: f.name || "file", type: f.type || "application/octet-stream", bytes: await f.arrayBuffer() });
           }
         }
@@ -127,8 +138,11 @@ self.addEventListener("fetch", (e) => {
         await stashShare(item);
         return Response.redirect("./index.html?swshare=" + encodeURIComponent(item.id), 303);
       } catch (err) {
-        // Anything unexpected: let the server endpoint handle it (plaintext,
-        // short TTL, its own limits) rather than losing the share.
+        // Too large: refused here, never sent on to the server (it may have
+        // been meant for an end-to-end board).
+        if (tooLarge) return Response.redirect("./index.html?share=toolarge", 303);
+        // Anything else unexpected: let the server endpoint handle it
+        // (sealed at rest, short-lived, its own limits) rather than lose it.
         return fetch(copy);
       }
     })());

@@ -86,7 +86,7 @@ every other session and remembered device. An administrator can turn
 | Brute force | 8 attempts per account from one address, 40 per account from anywhere, and 25 per address in 15 minutes, counted in the database. |
 | Uploads | An extension allowlist, random stored names, and a size limit. Only images and PDFs are shown inline; everything else downloads. A board background must really be a PNG, JPEG, GIF or WebP (never SVG). |
 | Rich text | Rebuilt from an allowlist on the server (`HtmlSanitizer`). The browser renders user text as text, never as markup. |
-| Headers | A strict Content Security Policy (`script-src 'self' 'wasm-unsafe-eval'`, no CDN), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, COOP and CORP on every response. |
+| Headers | A strict Content Security Policy (`script-src 'self' 'wasm-unsafe-eval'`, no CDN), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, COOP and CORP on every response the app's PHP sends; for the static files (the page, its scripts and styles) the installer's `.htaccess` adds them on Apache, and `deploy/` shows the server configuration. |
 | Concurrent edits | A change states the board version it was made on; a stale change is refused and the browser takes the current board instead of overwriting it. |
 | Fetching web pages | Title images, page titles and site icons are fetched only from public addresses (no private, loopback or metadata ranges), with redirects checked, size and time capped, and only real images kept (never SVG). Never for an end-to-end board. |
 | Errors | Never shown in a response; they go to the server's error log. |

@@ -171,7 +171,9 @@ class Markdown {
     s = s.replace(/\[([^\]]*)\]\(\s*((?:[^()\s]|\([^()\s]*\))+)(?:\s+"[^"]*")?\s*\)/g, (m, label, url) => {
       const href = Markdown.safeHref(url);
       const text = label || url;
-      return href ? `<a href="${href}">${text}</a>` : text;
+      // A quote in the address is percent-encoded, so it cannot end the
+      // attribute (the sanitizer rebuilds links anyway; this is not its job).
+      return href ? `<a href="${href.replace(/"/g, "%22").replace(/'/g, "%27")}">${text}</a>` : text;
     });
 
     s = s.replace(/\*\*(?=\S)([\s\S]*?\S)\*\*/g, "<strong>$1</strong>");

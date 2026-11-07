@@ -195,6 +195,20 @@ final class Helpers
         return self::boardRole($user, $board) === 'admin';
     }
 
+    /**
+     * A real calendar day "YYYY-MM-DD" (1900-2999), else null. A due date is
+     * a day, never a moment: no time zone may move it.
+     */
+    public static function calendarDay(?string $s): ?string
+    {
+        $s = trim((string)$s);
+        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $s, $m)) {
+            return null;
+        }
+        $y = (int)$m[1];
+        return checkdate((int)$m[2], (int)$m[3], $y) && $y >= 1900 && $y <= 2999 ? $s : null;
+    }
+
     public static function sanitizeUser(array $u): array
     {
         unset($u['passwordHash']);

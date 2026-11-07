@@ -1509,6 +1509,14 @@ final class BoardService
         return '';
     }
 
+    /** An imported comment's author as shown: the importer's own name, else "Name (imported)". */
+    private static function importedAuthor(string $author, array $user): string
+    {
+        $who = (string)($user['displayName'] ?? $user['username']);
+        $author = trim($author);
+        return $author === '' || $author === $who ? mb_substr($who, 0, 80) : mb_substr($author, 0, 68) . ' (imported)';
+    }
+
     /**
      * 404 unless the list is one of this board's. A list id from the request
      * is never trusted: the foreign key would accept another board's list,
@@ -1546,6 +1554,11 @@ final class BoardService
     public function claimInbox(array $user, string $inboxId, string $boardId, string $listId, ?string $title, string $cardId = ''): array
     {
         $b = $this->editableBoard($user, $boardId);
+        // The server would write the share's text readable onto the board.
+        // On an end-to-end board the browser claims it, encrypting it first.
+        if ($this->encrypted($boardId)) {
+            Helpers::fail('On an end-to-end encrypted board a share is added in the browser. Reload the page and try again.', 400);
+        }
         if ($cardId !== '') {
             return $this->claimInboxToCard($user, $b, $inboxId, $cardId);
         }
@@ -1725,10 +1738,11 @@ final class BoardService
     public function importIntoBoard(array $user, string $boardId, array $payload): array
     {
         $b = $this->editableBoard($user, $boardId);
-        $lists = array_slice(is_array($payload['lists'] ?? null) ? $payload['lists'] : [], 0, 200);
+        // The same limits as the board's own actions.
+        $lists = array_slice(is_array($payload['lists'] ?? null) ? $payload['lists'] : [], 0, self::MAX_LISTS);
         $cards = is_array($payload['cards'] ?? null) ? $payload['cards'] : [];
-        if (count($cards) > 5000) {
-            Helpers::fail('Too many cards in one import (max 5000).');
+        if (count($b['cards']) + count($cards) > self::MAX_CARDS_PER_BOARD) {
+            Helpers::fail('Too many cards for one board (max ' . self::MAX_CARDS_PER_BOARD . ').');
         }
         $who = $user['displayName'] ?? $user['username'];
         $now = Helpers::now();
@@ -1737,8 +1751,8 @@ final class BoardService
         $refs = [];
         foreach ($lists as $l) {
             $ref = (string)($l['ref'] ?? '');
-            if ($ref === '' || isset($refs[$ref])) {
-                continue;
+            if ($ref === '' || isset($refs[$ref]) || count($b['lists']) >= self::MAX_LISTS) {
+                continue; // a card for a list that did not fit is skipped below
             }
             $id = Helpers::newId('l_');
             $b['lists'][] = ['id' => $id, 'title' => $this->content((string)($l['title'] ?? 'List'), 80, $boardId), 'order' => Helpers::nextOrder($b['lists'])];
@@ -1780,9 +1794,9 @@ final class BoardService
             }
             $due = (string)($c['dueDate'] ?? '');
             $checklists = [];
-            foreach (array_slice(is_array($c['checklists'] ?? null) ? $c['checklists'] : [], 0, 50) as $k) {
+            foreach (array_slice(is_array($c['checklists'] ?? null) ? $c['checklists'] : [], 0, self::MAX_CHECKLISTS_PER_CARD) as $k) {
                 $items = [];
-                foreach (array_slice(is_array($k['items'] ?? null) ? $k['items'] : [], 0, 500) as $t) {
+                foreach (array_slice(is_array($k['items'] ?? null) ? $k['items'] : [], 0, self::MAX_ITEMS_PER_CHECKLIST) as $t) {
                     $items[] = ['id' => Helpers::newId('t_'), 'text' => $this->content((string)($t['text'] ?? ''), 300, $boardId), 'done' => !empty($t['done'])];
                 }
                 $checklists[] = ['id' => Helpers::newId('k_'), 'title' => $this->content(trim((string)($k['title'] ?? '')) ?: 'Checklist', 120, $boardId), 'items' => $items];
@@ -1797,8 +1811,7 @@ final class BoardService
                 }
                 $author = is_array($m) ? trim(mb_substr((string)($m['author'] ?? ''), 0, 80)) : '';
                 $date = is_array($m) ? self::importDate($m['date'] ?? null) : null;
-                $shown = $author === '' || $author === $who ? $who : mb_substr($author, 0, 68) . ' (imported)';
-                $comments[] = ['id' => Helpers::newId('m_'), 'userId' => $user['id'], 'username' => mb_substr($shown, 0, 80),
+                $comments[] = ['id' => Helpers::newId('m_'), 'userId' => $user['id'], 'username' => self::importedAuthor($author, $user),
                     'text' => $this->content($text, 2000, $boardId), 'createdAt' => $date ?? $now];
             }
             $cardLabels = [];
@@ -1819,7 +1832,7 @@ final class BoardService
                 'title' => $this->content(trim((string)($c['title'] ?? '')) ?: 'Card', 200, $boardId),
                 'description' => $this->content((string)($c['description'] ?? ''), 20000, $boardId, true),
                 // A calendar day, never a timestamp (see AGENTS.md on due dates).
-                'dueDate' => preg_match('/^\d{4}-\d{2}-\d{2}$/', $due) ? $due : null,
+                'dueDate' => Helpers::calendarDay($due),
                 'completed' => !empty($c['completed']),
                 'order' => $order,
                 'archived' => false,
@@ -1988,8 +2001,9 @@ final class BoardService
             $commentsByCard[$cid][] = [
                 'id' => Helpers::newId('m_'),
                 'userId' => $user['id'],
-                // Who wrote it in Trello (the full name, as Trello shows it) and when.
-                'username' => mb_substr(trim((string)($a['memberCreator']['fullName'] ?? '')) ?: (string)($a['memberCreator']['username'] ?? 'import'), 0, 80),
+                // Who wrote it in Trello (the full name, as Trello shows it) and
+                // when, marked as imported: it was not written here by them.
+                'username' => self::importedAuthor(trim((string)($a['memberCreator']['fullName'] ?? '')) ?: (string)($a['memberCreator']['username'] ?? ''), $user),
                 'text' => mb_substr((string)($a['data']['text'] ?? ''), 0, 2000),
                 'createdAt' => self::importDate($a['date'] ?? null) ?? Helpers::now(),
             ];
@@ -2014,14 +2028,16 @@ final class BoardService
                     }
                     $kls[] = ['id' => Helpers::newId('k_'), 'title' => mb_substr((string)($k['name'] ?? 'Checklist'), 0, 120), 'items' => $mapped];
                 }
-                $due = $c['due'] ?? null;
+                // Trello's due is a moment ("2026-03-01T12:00:00.000Z"); the
+                // column is a calendar day, which is its first ten characters.
+                $due = Helpers::calendarDay(substr((string)($c['due'] ?? ''), 0, 10));
                 $cards[] = [
                     'id' => Helpers::newId('c_'),
                     'boardId' => '',
                     'listId' => $lid,
                     'title' => mb_substr(trim((string)($c['name'] ?? 'Card')) ?: 'Card', 0, 200),
                     'description' => mb_substr(Helpers::sanitizeRichText((string)($c['desc'] ?? '')), 0, 20000),
-                    'dueDate' => $due ? (string)$due : null,
+                    'dueDate' => $due,
                     'order' => $ord,
                     'archived' => false,
                     'archivedAt' => null,

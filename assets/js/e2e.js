@@ -374,6 +374,17 @@ class RKE2E {
 
   // ---- ApiClient hooks --------------------------------------------------
 
+  /**
+   * The board a request is for. One this browser does not hold cannot be
+   * known to be unencrypted, so text for it is refused rather than sent
+   * as it is (fail closed).
+   */
+  boardFor(boardId) {
+    const board = this.app.store.boards.find((b) => b.id === boardId);
+    if (!board) throw new Error("That board is not loaded. Reload the page and try again.");
+    return board;
+  }
+
   /** Encrypt outgoing fields. Refuse rather than leak plaintext. */
   beforeSend(action, params) {
     if (!RKE2E.enabled) return params;
@@ -381,7 +392,7 @@ class RKE2E {
     if (action === "save_labels") return this.sealLabels(params);
     const fields = RKE2E.FIELD_MAP[action];
     if (!fields || !params || !params.boardId) return params;
-    const board = this.app.store.boards.find((b) => b.id === params.boardId);
+    const board = this.boardFor(params.boardId);
     if (!this.isEncrypted(board)) return params;
     if (!this.isUnlocked(params.boardId)) {
       throw new Error("This board is locked. Unlock it first.");
@@ -402,7 +413,7 @@ class RKE2E {
    * sealed here; nothing readable reaches the server for an encrypted board.
    */
   sealImport(params) {
-    const board = this.app.store.boards.find((b) => b.id === params?.boardId);
+    const board = this.boardFor(params?.boardId);
     if (!this.isEncrypted(board)) return params;
     if (!this.isUnlocked(params.boardId)) throw new Error("This board is locked. Unlock it first.");
     const c = this.crypto;
@@ -431,7 +442,7 @@ class RKE2E {
 
   /** Labels are a list of {id, name, color}: only the names are sealed. */
   sealLabels(params) {
-    const board = this.app.store.boards.find((b) => b.id === params?.boardId);
+    const board = this.boardFor(params?.boardId);
     if (!this.isEncrypted(board)) return params;
     if (!this.isUnlocked(params.boardId)) throw new Error("This board is locked. Unlock it first.");
     const c = this.crypto;

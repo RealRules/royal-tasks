@@ -1050,6 +1050,8 @@ class KanbanApp {
       signin: "Sign in first, then share again — nothing was saved.",
       throttled: "Too many shares just now. Try again shortly.",
       full: "The share inbox is full. Turn some pending shares into cards first.",
+      foreign: "A share sent from another website was ignored.",
+      toolarge: "That share is too large (over 64 MB) and was not added.",
     };
     if (messages[status]) this.toast(messages[status], true);
   }

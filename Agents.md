@@ -69,7 +69,8 @@ from v11, when a comment was edited (`comments.edited_at`) from v12 (an
 edit before v12 is saved but not marked), and the calendar subscription
 (`calendar_feeds`, `calendar_names`) from v13, and accounts by email
 (`settings`, `email_links`, `users.email_hash`) from v14, and a checklist
-item's page title and icon (`checklist_items.link_meta`) from v15. Current version: 15.
+item's page title and icon (`checklist_items.link_meta`) from v15, and activity
+text sealed at rest (`activity.text` widened to TEXT) from v16. Current version: 16.
 
 `copyinstall.bat <folder>` copies the runtime files to an installation and
 never touches its `config.php`, `uploads/` or hardening files.
@@ -105,6 +106,8 @@ the same outer layer. Never serve a stored file with `readfile()`: go through
 - The key never goes into the database, the repo or a response. Losing it makes
   the boards unreadable: back up `config.php` with the database.
 - A sealed value that will not open is an error, never passed on as ciphertext.
+- Activity text is sealed too (from v16), although the server writes it
+  itself from fixed phrases; the author's name is not, like a comment's.
 - `AtRest::seal()` always encrypts, even a value that already starts with
   `rk1:`: user text can (a comment "rk1:AAAA"), and storing it as it was made
   every read of its board fail. Code that re-seals stored data opens it first
@@ -400,6 +403,13 @@ These hold today and must not regress:
   token; `onSessionChanged` reloads the page. Without it, a token rotated by
   another tab signing in would run the first user's move/delete/share as the
   second user.
+- `claim_inbox` refuses an end-to-end board: the server would write the
+  share's text readable onto it. The browser claims those shares itself,
+  encrypting them first.
+- `api/share-target.php` refuses a post whose Origin is another site (a
+  share from the phone's share sheet sends none, or "null"). The service
+  worker ignores a share whose referrer is another site, and refuses one over
+  64 MB rather than passing it on to the server.
 - Claiming a share persists the card first and consumes the inbox item second,
   and treats a delete that changed no rows as "already claimed". The other
   order lost the share if the board save failed (a 409 conflict), and let two
@@ -423,6 +433,12 @@ These hold today and must not regress:
 - All text length limits are in characters. `Helpers`' `mb_substr` fallback
   (used when ext-mbstring is absent) splits on character boundaries; a
   byte-based cut produces invalid UTF-8, which is what triggered the above.
+- `ApiClient.upload()` carries the same session guards as `send()`: nothing
+  goes out once the session belongs to another account, whose token is never
+  taken. `RKE2E.beforeSend` (and `sealImport`, `sealLabels`) refuse text
+  for a board the browser does not hold (`boardFor`), rather than send it
+  as it is. `Markdown` percent-encodes a quote in a link's address, though
+  the sanitizer is what makes rendered HTML safe.
 - `ApiClient.upload()` must run the same `afterReceive` hook as `call()`. It
   returns a whole board document, and skipping the hook left encrypted fields
   as ciphertext in the client store.
@@ -459,6 +475,8 @@ These hold today and must not regress:
   `findInboxFor`/`claimInboxItem`, both scoped to `user_id`, so one user cannot
   read or delete another's share. `StorageInterface` no longer has
   `replaceAll`, on purpose: do not reintroduce a whole-collection rewrite.
+  The generic `all`/`find`/`save`/`delete` do not reach the inbox at
+  all (only the scoped methods do), and its upsert is guarded by `user_id`.
 - Socket-level settings follow the deployment, not the caller. `isHttps()` and
   `clientIp()` read X-Forwarded-Proto/-For **only** when `RK_TRUST_PROXY` is
   set (config `trust_proxy` / env `ROYAL_KANBAN_TRUST_PROXY`); otherwise a
@@ -486,6 +504,11 @@ These hold today and must not regress:
   `cover_fetch` throttle. An icon is stored only as a data: URI the server
   builds from bytes that decode as a raster image; the client shows only a
   `data:image/(png|jpeg|gif|webp|x-icon);base64,` value (`CardModal.ICON_RE`).
+- Imports follow the board's own limits (`MAX_LISTS`, `MAX_CARDS_PER_BOARD`,
+  `MAX_CHECKLISTS_PER_CARD`, `MAX_ITEMS_PER_CHECKLIST`); a due date is
+  kept only as a real calendar day (`Helpers::calendarDay`; Trello's due
+  moment is cut to its day), so one bad date cannot fail an import; and a
+  comment by someone else is marked "(imported)", in both imports.
 - Imports go in one request (`import_into_board`), saved by one persist. A
   request per card made the server save and return the whole growing board
   each time; a 500-card import never finished. On an end-to-end board

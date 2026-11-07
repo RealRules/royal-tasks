@@ -210,6 +210,8 @@ function rk_i_htaccess_root(): string
         '    Header always set X-Content-Type-Options "nosniff"',
         '    Header always set Referrer-Policy "same-origin"',
         '    Header always set X-Frame-Options "DENY"',
+        '    Header always setifempty Cross-Origin-Opener-Policy "same-origin"',
+        '    Header always setifempty Cross-Origin-Resource-Policy "same-origin"',
         '</IfModule>',
         '',
     ]);

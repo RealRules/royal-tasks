@@ -255,6 +255,13 @@ class ApiClient {
   }
 
   async sendUpload(action, params, formData, onProgress) {
+    // The same guards as send(): nothing is sent once the session belongs to
+    // another account, and that account's token is never taken.
+    if (this.sessionDead) {
+      const err = new Error("Your session changed in another tab. Reloading.");
+      err.sessionChanged = true;
+      throw err;
+    }
     await this.ensureCsrfToken();
     const qs = new URLSearchParams(this.withBoardVersion(params)).toString();
     let res;
@@ -266,7 +273,12 @@ class ApiClient {
     }
     this.onNetwork?.(true);
     let data = res.data;
-    if (data && typeof data.csrfToken === "string") this.csrfToken = data.csrfToken;
+    if (data && "user" in data && this.userId && (data.user?.id ?? null) !== this.userId && !this.sessionDead) {
+      this.sessionDead = true;
+      this.csrfToken = null;
+      this.onSessionChanged?.();
+    }
+    if (data && typeof data.csrfToken === "string" && !this.sessionDead) this.csrfToken = data.csrfToken;
     // Same decryption hook as call(): an upload response carries the whole
     // board, and skipping this left its fields as ciphertext in the store.
     if (data && this.afterReceive) data = this.afterReceive(action, data) || data;

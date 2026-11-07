@@ -36,6 +36,14 @@ if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
     exit;
 }
 
+// A form on another site cannot plant a share: browsers send Origin with a
+// cross-site POST, and a share from the phone's share sheet sends none (or
+// "null"), so only a foreign origin is refused.
+$rkOrigin = (string)($_SERVER['HTTP_ORIGIN'] ?? '');
+if ($rkOrigin !== '' && $rkOrigin !== 'null' && !hash_equals(Security::selfOrigin(), $rkOrigin)) {
+    rk_bounce('foreign');
+}
+
 if (!rk_installed()) {
     rk_bounce('signin');
 }

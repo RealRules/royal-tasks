@@ -181,10 +181,8 @@ final class MysqlStorage implements StorageInterface
             case 'boards':
                 $ids = array_column($this->rows("SELECT id FROM {$this->p}boards ORDER BY updated_at DESC"), 'id');
                 return $this->assembleBoards($ids);
-            case 'inbox':
-                return array_map([$this, 'inboxDoc'], $this->rows(
-                    "SELECT * FROM {$this->p}inbox ORDER BY created_at"
-                ));
+            // No 'inbox': a share belongs to one user and is only reached
+            // through the scoped methods (findInboxFor, claimInboxItem).
             default:
                 return [];
         }
@@ -420,9 +418,6 @@ final class MysqlStorage implements StorageInterface
             case 'boards':
                 $boards = $this->assembleBoards([$id]);
                 return $boards[0] ?? null;
-            case 'inbox':
-                $r = $this->row("SELECT * FROM {$this->p}inbox WHERE id = ?", [$id]);
-                return $r ? $this->inboxDoc($r) : null;
             default:
                 return null;
         }
@@ -481,9 +476,6 @@ final class MysqlStorage implements StorageInterface
                 return $record;
             case 'boards':
                 return $this->saveBoard($record, $expectedVersion);
-            case 'inbox':
-                $this->saveInbox($record);
-                return $record;
             default:
                 return $record;
         }
@@ -496,7 +488,6 @@ final class MysqlStorage implements StorageInterface
         $table = match ($collection) {
             'users' => "{$this->p}users",
             'boards' => "{$this->p}boards",
-            'inbox' => "{$this->p}inbox",
             default => null,
         };
         return $table !== null && $this->run("DELETE FROM {$table} WHERE id = ?", [$id]) > 0;
@@ -1332,7 +1323,7 @@ final class MysqlStorage implements StorageInterface
                     'id' => (string)$a['id'],
                     'userId' => $a['user_id'] === null ? null : (string)$a['user_id'],
                     'username' => (string)$a['author_name'],
-                    'text' => (string)$a['text'],
+                    'text' => $this->open($a['text'], $cards[$a['card_id']]['boardId']),
                     'createdAt' => self::toIso($a['created_at']),
                 ];
             }
@@ -1693,7 +1684,9 @@ final class MysqlStorage implements StorageInterface
                                 text = IF(card_id = VALUES(card_id), VALUES(text), text)",
                     'args' => [
                         (string)$a['id'], $cid, ($a['userId'] ?? null) ?: null,
-                        (string)($a['username'] ?? ''), mb_substr((string)($a['text'] ?? ''), 0, 190),
+                        (string)($a['username'] ?? ''),
+                        // Sealed at rest like every other text (v16 widened the column).
+                        $this->schemaVersion() >= 16 ? $this->seal(mb_substr((string)($a['text'] ?? ''), 0, 190)) : mb_substr((string)($a['text'] ?? ''), 0, 190),
                         self::toDbTime($a['createdAt'] ?? null) ?? gmdate(self::DB_TIME),
                     ],
                 ];
@@ -2005,7 +1998,10 @@ final class MysqlStorage implements StorageInterface
         $seal = fn(string $v): string => $this->sealing() ? AtRest::seal($v, $scope) : $v;
         $this->run(
             "INSERT INTO {$this->p}inbox (id,user_id,title,body,url,created_at) VALUES (?,?,?,?,?,?)
-             ON DUPLICATE KEY UPDATE title = VALUES(title), body = VALUES(body), url = VALUES(url)",
+             ON DUPLICATE KEY UPDATE
+               title = IF(user_id = VALUES(user_id), VALUES(title), title),
+               body = IF(user_id = VALUES(user_id), VALUES(body), body),
+               url = IF(user_id = VALUES(user_id), VALUES(url), url)",
             [
                 (string)$i['id'], (string)($i['userId'] ?? ''), $seal((string)($i['title'] ?? '')),
                 $seal((string)($i['text'] ?? '')), $seal((string)($i['url'] ?? '')),

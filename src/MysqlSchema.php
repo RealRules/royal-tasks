@@ -30,7 +30,7 @@ declare(strict_types=1);
 final class MysqlSchema
 {
     /** Bump when the DDL changes; `rk_meta.schema_version` records what is applied. */
-    public const VERSION = 15;
+    public const VERSION = 16;
 
     public const DEFAULT_PREFIX = 'rk_';
 
@@ -300,7 +300,8 @@ final class MysqlSchema
                 card_id      {$id} NOT NULL,
                 user_id      {$id} NULL,
                 author_name  VARCHAR(80) NOT NULL,
-                text         VARCHAR(190) NOT NULL,
+                /* Sealed at rest from v16, hence TEXT. */
+                text         TEXT NOT NULL,
                 created_at   DATETIME(3) NOT NULL,
                 PRIMARY KEY (id),
                 /* Grows fastest of any table — a row per action. The card
@@ -537,6 +538,10 @@ final class MysqlSchema
             ] as $sql) {
                 $pdo->exec($sql);
             }
+        }
+        if ($from < 16) {
+            // v16: activity text is sealed at rest, wider than its 190 characters.
+            $pdo->exec("ALTER TABLE {$p}activity MODIFY text TEXT NOT NULL");
         }
         if ($from < 3) {
             $widens = [
