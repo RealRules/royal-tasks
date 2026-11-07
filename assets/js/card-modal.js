@@ -1190,14 +1190,14 @@ class CardModal {
         : `<span class="att-thumb att-thumb-icon" aria-hidden="true">${icon}</span>`;
       // Everything opens through openAttachment(): a viewable type in the
       // overlay, anything else as a download.
-      return `<div class="panel px-2 py-1 flex items-center gap-2 text-sm">
+      return `<div class="panel att-row px-2 py-0.5 flex items-center gap-2 text-sm">
         <button class="shrink-0" data-att-open="${this.esc(a.id)}" aria-label="Open ${name}" tabindex="-1">${thumb}</button>
         <button class="att-label flex-1 min-w-0 text-left" data-att-open="${this.esc(a.id)}"
                 title="${name}">
           <span class="att-name">${isEnc ? "🔒 " : ""}${name}</span>
           <span class="att-meta micro">${this.esc(a.username || "")}${kb}</span>
         </button>
-        <button class="btn btn-ghost" data-del-attachment="${this.esc(a.id)}" ${ro}>✕</button>
+        <button class="btn btn-ghost att-del" data-del-attachment="${this.esc(a.id)}" aria-label="Delete ${name}" title="Delete" ${ro}>✕</button>
       </div>`;
     }).join("");
   }

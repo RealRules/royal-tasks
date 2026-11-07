@@ -204,6 +204,42 @@ final class BoardService
     /** The image types a board background may be (see setBackground and api/file.php). */
     public const BACKGROUND_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
+    /**
+     * The "type" of an end-to-end board's background: ciphertext, which only
+     * the members' browsers can open. api/file.php sends it as an opaque
+     * download, never as an image.
+     */
+    public const SEALED_BACKGROUND = 'application/x-rk-sealed';
+
+    /**
+     * An end-to-end board's background picture, encrypted in the browser
+     * (RKE2E: the board key, AAD file:<board>:background). Only on such a
+     * board; the server cannot check what it is, and serves it only as an
+     * opaque download, which the browser decrypts and checks itself.
+     *
+     * @param array<string,mixed> $rec the stored upload (Uploads::saveCiphertext)
+     */
+    public function setSealedBackground(array $user, string $boardId, array $rec): array
+    {
+        $b = $this->getBoardOrFail($boardId);
+        if (!Helpers::canEdit($user, $b)) {
+            Uploads::deleteStored((string)($rec['stored'] ?? ''));
+            Helpers::fail('Read-only board.', 403);
+        }
+        if (!$this->encrypted($boardId) || ($rec['stored'] ?? '') === '') {
+            Uploads::deleteStored((string)($rec['stored'] ?? ''));
+            Helpers::fail('Only an end-to-end encrypted board takes an encrypted background.', 400);
+        }
+        $previous = (string)($b['backgroundImage'] ?? '');
+        $b['backgroundImage'] = (string)$rec['stored'];
+        $b['backgroundMime'] = self::SEALED_BACKGROUND;
+        $saved = $this->persist($b, $user);
+        if ($previous !== '' && $previous !== $b['backgroundImage']) {
+            Uploads::deleteStored($previous);
+        }
+        return $saved;
+    }
+
     public function setBackground(array $user, string $boardId, array $records): array
     {
         $b = $this->getBoardOrFail($boardId);
@@ -215,10 +251,10 @@ final class BoardService
             Helpers::fail('No image received.');
         }
         if ($this->encrypted($boardId)) {
-            // A background is not encrypted in the browser; on an end-to-end
-            // board the server would see the picture.
+            // A readable picture on an end-to-end board: the server would see
+            // it. Such a board sends its background encrypted (setSealedBackground).
             Uploads::deleteStored((string)$rec['stored']);
-            Helpers::fail('An end-to-end encrypted board has no background picture.', 400);
+            Helpers::fail('On an end-to-end encrypted board the background picture must be encrypted. Reload the page and try again.', 400);
         }
         // PNG, JPEG, GIF or WebP, by name and by content. Never SVG: an SVG
         // is a document that can run script on the app's origin.

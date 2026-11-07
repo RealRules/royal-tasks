@@ -210,7 +210,13 @@ An end-to-end board that is not unlocked is counted apart, not read.
 An administrator invites people by email (Users → Invite by email): the link
 lets them make their own account (username, name, password; the address is
 the invited one). "Forgot your password?" on the sign-in page emails a link
-to sign in and choose a new password, found by username or email. An
+to sign in and choose a new password, found by username or email. Users →
+"Invite several people at once" takes up to 25 addresses (commas, semicolons
+or new lines; duplicates count once) and sends one invitation each, one
+request per address with progress (`KanbanApp.parseEmails`); addresses that
+have an account or a pending invitation are skipped, and what was not sent
+stays in the box. Invitations and password links share a limit of 60 an hour
+per administrator. An
 administrator can email a user such a link (Users → ✉ Password link). The
 administrator's settings (Preferences → Administration, `settings` table)
 turn the last two on or off (both on by default) and hold the site address
@@ -277,12 +283,20 @@ handles encryption itself.
   every list and label name, card title and description, checklist, item and
   comment and sends them in one write (`seal_board_content`, owner only, only
   on an encrypted board), uploads each readable attachment again encrypted
-  (moving the title image to it) and deletes the readable one, and removes a
-  background picture (`RKE2E.sealExisting`). The browser counts what still
-  does not decrypt on an encrypted board (`plainCount`, from an interrupted
-  run or a board encrypted by an older version) and the encryption dialog
-  offers to finish it. An end-to-end board has no background picture (refused
-  by the server, disabled in the menu): it would not be encrypted.
+  (moving the title image to it) and deletes the readable one, and uploads a
+  background picture again encrypted (`RKE2E.sealExisting`). The browser
+  counts what still does not decrypt on an encrypted board (`plainCount`,
+  from an interrupted run or a board encrypted by an older version) and the
+  encryption dialog offers to finish it.
+- An end-to-end board's background picture is encrypted in the browser like
+  an attachment (the board key, AAD `file:<boardId>:background`; only PNG,
+  JPEG, GIF or WebP, checked by its first bytes). The server stores the
+  ciphertext as `.enc` with the type `application/x-rk-sealed`
+  (`setSealedBackground`, only on an encrypted board, which in turn refuses
+  a readable picture), and `api/file.php` sends it as an opaque, sandboxed
+  download. The browser fetches it, decrypts it, checks it is an image and
+  shows it from a blob: URL (`KanbanApp.applyBoardBackground`); a locked
+  board shows none.
 - The browser pins the encrypted state: a board it holds a key for is
   encrypted whatever the server's flag says (`RKE2E.isEncrypted`), so a
   server or database that stops saying so cannot make it send text readable.

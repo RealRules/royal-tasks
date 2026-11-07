@@ -1316,23 +1316,88 @@ class KanbanApp {
    */
   applyBoardBackground(board) {
     const img = board && board.backgroundImage ? board.backgroundImage : "";
-    if (!img) {
-      document.body.style.backgroundImage = "";
-      delete document.body.dataset.hasBg;
-      return;
-    }
+    const show = (url) => {
+      document.body.style.backgroundImage = url ? `url("${url}")` : "";
+      if (url) document.body.dataset.hasBg = "1"; else delete document.body.dataset.hasBg;
+    };
+    if (!img) { show(""); return; }
     const url = `api/file.php?b=${encodeURIComponent(board.id)}&f=${encodeURIComponent(img)}`;
-    document.body.style.backgroundImage = `url("${url}")`;
-    document.body.dataset.hasBg = "1";
+    if (board.backgroundMime !== KanbanApp.SEALED_BACKGROUND) { show(url); return; }
+    // An end-to-end board's picture is ciphertext: fetched, decrypted here,
+    // checked to be an image, and shown from a blob: URL (kept, so redraws do
+    // not fetch it again). Nothing while the board is locked.
+    const key = board.id + "|" + img;
+    if (this.bgBlob?.key === key) { show(this.bgBlob.url); return; }
+    show("");
+    if (!this.e2e?.isUnlocked(board.id)) return;
+    const boardId = board.id;
+    fetch(url, { credentials: "same-origin" })
+      .then((r) => { if (!r.ok) throw new Error("background " + r.status); return r.arrayBuffer(); })
+      .then((buf) => {
+        const c = this.e2e.crypto;
+        const bytes = c.decryptBytes(new Uint8Array(buf), this.e2e.keyFor(boardId), c.attachmentAad(boardId, "background"));
+        const type = KanbanApp.rasterType(bytes);
+        if (!type) throw new Error("not an image");
+        if (this.bgBlob) URL.revokeObjectURL(this.bgBlob.url);
+        this.bgBlob = { key, url: URL.createObjectURL(new Blob([bytes], { type })) };
+        const now = this.store.activeBoard;
+        if (now && now.id === boardId && now.backgroundImage === img) show(this.bgBlob.url);
+      })
+      .catch(() => { /* unreadable: the board shows without its picture */ });
+  }
+
+  /** At most this many addresses in one batch of invitations. */
+  static BATCH_INVITES = 25;
+
+  /**
+   * Email addresses from text: separated by commas, semicolons, spaces or
+   * new lines; "Name <a@b.c>" gives a@b.c. Duplicates (any case) count once.
+   * Returns the valid ones and the rest.
+   */
+  static parseEmails(text) {
+    const seen = new Set(), valid = [], invalid = [];
+    for (let part of String(text || "").split(/[\s,;]+/)) {
+      part = part.replace(/^<|>$/g, "").trim();
+      if (!part) continue;
+      const key = part.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (/^[^\s@<>"(),;:]+@[^\s@<>"(),;:]+\.[^\s@<>"(),;:]{2,}$/.test(part) && part.length <= 254) valid.push(part);
+      else invalid.push(part);
+    }
+    return { valid, invalid };
+  }
+
+  /** The background "type" of an end-to-end board (BoardService::SEALED_BACKGROUND). */
+  static SEALED_BACKGROUND = "application/x-rk-sealed";
+
+  /** PNG, JPEG, GIF or WebP by their first bytes, else null. */
+  static rasterType(b) {
+    if (!b || b.length < 12) return null;
+    if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "image/png";
+    if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+    if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) return "image/gif";
+    if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return "image/webp";
+    return null;
   }
 
   async setBoardBackground(board, file) {
     if (!file) return;
-    if (this.e2e?.isEncrypted(board)) { this.toast("An encrypted board has no background picture: it would be stored unencrypted.", true); return; }
     if (!/^image\//.test(file.type)) { this.toast("Choose an image file.", true); return; }
     try {
       const fd = new FormData();
-      fd.append("file", file);
+      if (this.e2e?.isEncrypted(board)) {
+        // Encrypted here, like an attachment; the server keeps ciphertext.
+        if (this.e2e.isLocked(board)) throw new Error("Unlock the board first.");
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        if (!KanbanApp.rasterType(bytes)) throw new Error("A background must be a PNG, JPEG, GIF or WebP image.");
+        await this.e2e.ensureCrypto();
+        const c = this.e2e.crypto;
+        fd.append("encrypted", "1");
+        fd.append("file", new Blob([c.encryptBytes(bytes, this.e2e.keyFor(board.id), c.attachmentAad(board.id, "background"))], { type: "application/octet-stream" }), "enc.bin");
+      } else {
+        fd.append("file", file);
+      }
       const d = await this.api.upload("upload_board_background", { boardId: board.id }, fd);
       this.store.updateBoardInPlace(d.board);
       this.store.version = d.version;
@@ -2119,6 +2184,16 @@ class KanbanApp {
             <select id="inv-role" class="select"><option value="user">user</option><option value="admin">admin</option></select>
             <button class="btn btn-primary" id="inv-send" ${this.mailInfo?.ready ? "" : "disabled"}>Invite</button>
           </div>
+          <details class="mt-2" id="inv-batch-box" ${this.batchInvite?.open ? "open" : ""}>
+            <summary class="text-sm cursor-pointer">Invite several people at once</summary>
+            <p class="text-xs opacity-70 mt-1">Up to ${KanbanApp.BATCH_INVITES} email addresses, separated by commas or on separate lines. Each gets their own invitation.</p>
+            <textarea id="inv-batch" class="input mt-1" rows="4" placeholder="ana@example.com, jonas@example.com&#10;maya@example.com" autocomplete="off"></textarea>
+            <div class="flex items-center gap-2 mt-2">
+              <select id="inv-batch-role" class="select" style="width:auto"><option value="user">as users</option><option value="admin">as admins</option></select>
+              <button class="btn btn-primary" id="inv-batch-send" ${this.mailInfo?.ready ? "" : "disabled"}>Send invitations</button>
+            </div>
+            <p class="text-sm mt-2" id="inv-batch-status" aria-live="polite"></p>
+          </details>
           <div class="flex flex-col gap-1 mt-2" id="inv-list"></div>
         </div>
         <div class="mt-4 pt-3 border-t" style="border-color:var(--line)">
@@ -2145,6 +2220,56 @@ class KanbanApp {
         row.append(who, revoke);
         invList.append(row);
       }
+      // Several invitations in one go: one request each (each sends its own
+      // email, so a slow mail server cannot run one request past PHP's time
+      // limit), with progress, and the addresses that did not go left in the
+      // box to try again.
+      if (this.batchInvite) {
+        root.querySelector("#inv-batch").value = this.batchInvite.left || "";
+        root.querySelector("#inv-batch-status").textContent = this.batchInvite.status || "";
+      }
+      root.querySelector("#inv-batch-send").addEventListener("click", async (e) => {
+        const btn = e.currentTarget;
+        const status = root.querySelector("#inv-batch-status");
+        const parsed = KanbanApp.parseEmails(root.querySelector("#inv-batch").value);
+        if (!parsed.valid.length && !parsed.invalid.length) { status.textContent = "Enter at least one email address."; return; }
+        if (parsed.valid.length + parsed.invalid.length > KanbanApp.BATCH_INVITES) {
+          status.textContent = `At most ${KanbanApp.BATCH_INVITES} at a time: you entered ${parsed.valid.length + parsed.invalid.length}.`;
+          return;
+        }
+        const pending = new Set((this.invites || []).map((i) => String(i.email).toLowerCase()));
+        const members = new Set((this.users || []).map((u) => String(u.email || "").toLowerCase()).filter(Boolean));
+        const role = root.querySelector("#inv-batch-role").value;
+        const sent = [], skipped = [], failed = [];
+        btn.disabled = true;
+        const todo = parsed.valid.filter((m) => {
+          if (members.has(m.toLowerCase())) { skipped.push(`${m} (has an account)`); return false; }
+          if (pending.has(m.toLowerCase())) { skipped.push(`${m} (already invited)`); return false; }
+          return true;
+        });
+        for (let n = 0; n < todo.length; n++) {
+          status.textContent = `Sending ${n + 1} of ${todo.length}…`;
+          try {
+            const r = await this.api.call("invite_user", { email: todo[n], displayName: "", role, appUrl: KanbanApp.siteAddress() });
+            this.invites = r.invites || this.invites;
+            sent.push(todo[n]);
+          } catch (ex) {
+            failed.push({ email: todo[n], why: ex.message });
+            if (ex.status === 429 || /too many/i.test(ex.message)) { // the hourly limit: stop, keep the rest
+              todo.slice(n + 1).forEach((m) => failed.push({ email: m, why: "not sent (limit reached)" }));
+              break;
+            }
+          }
+        }
+        const lines = [`Sent ${sent.length} invitation${sent.length === 1 ? "" : "s"}.`];
+        if (skipped.length) lines.push(`Skipped: ${skipped.join(", ")}.`);
+        if (parsed.invalid.length) lines.push(`Not email addresses: ${parsed.invalid.join(", ")}.`);
+        if (failed.length) lines.push(`Not sent: ${failed.map((f) => `${f.email} (${f.why})`).join(", ")}.`);
+        // What did not go stays in the box, to fix and send again.
+        this.batchInvite = { open: true, status: lines.join(" "), left: [...failed.map((f) => f.email), ...parsed.invalid].join("\n") };
+        if (sent.length) this.toast(`Sent ${sent.length} invitation${sent.length === 1 ? "" : "s"}.`);
+        render();
+      });
       root.querySelector("#inv-send").addEventListener("click", async (e) => {
         const btn = e.currentTarget;
         btn.disabled = true;
@@ -4092,7 +4217,7 @@ class KanbanApp {
             <span class="menu-icon" aria-hidden="true">⭳</span> Import Trello JSON…
           </button>
           <div class="menu-sep" role="separator"></div>
-          <button class="menu-item" role="menuitem" id="mi-bg" ${editable && !this.e2e?.isEncrypted(board) ? "" : "disabled"}>
+          <button class="menu-item" role="menuitem" id="mi-bg" ${editable && !this.e2e?.isLocked(board) ? "" : "disabled"}>
             <span class="menu-icon" aria-hidden="true">🖼</span> ${board.backgroundImage ? "Replace background image…" : "Set background image…"}
           </button>
           ${board.backgroundImage ? `<button class="menu-item" role="menuitem" id="mi-bg-clear" ${editable ? "" : "disabled"}>

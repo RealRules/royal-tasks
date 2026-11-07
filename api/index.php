@@ -444,15 +444,23 @@ try {
             if (empty($_FILES)) {
                 Helpers::fail('No image received.');
             }
+            // An end-to-end board sends the picture encrypted in the browser:
+            // ciphertext, stored as .enc, which the server cannot look into.
+            // Only an existing encrypted board may take that path.
+            $sealed = Helpers::str($in, 'encrypted') === '1' && $store->isBoardEncrypted($boardId);
             try {
-                $records = Uploads::saveFiles($_FILES, $boardId);
+                $records = $sealed
+                    ? Uploads::saveCiphertext($_FILES, $boardId, 'f_bg', '')
+                    : Uploads::saveFiles($_FILES, $boardId);
             } catch (RuntimeException $e) {
                 Helpers::fail($e->getMessage());
             }
             if (count($records) === 0) {
                 Helpers::fail('No image received.');
             }
-            $b = $boards->setBackground($u, $boardId, $records);
+            $b = $sealed
+                ? $boards->setSealedBackground($u, $boardId, $records[0])
+                : $boards->setBackground($u, $boardId, $records);
             Helpers::json(['ok' => true, 'board' => $b, 'version' => $store->getVersion()]);
         }
         case 'clear_board_background': {
@@ -680,7 +688,8 @@ try {
         }
         case 'invite_user': {
             $me = $auth->requireAdmin();
-            if ($store->throttle('invite', (string)$me['id'], 30, 3600) > 0) {
+            // 60 an hour: a batch (up to 25, one request each) and then some.
+            if ($store->throttle('invite', (string)$me['id'], 60, 3600) > 0) {
                 Helpers::fail('Too many invitations just now. Try again later.', 429);
             }
             $acc = new Accounts($store);
@@ -696,7 +705,7 @@ try {
         }
         case 'send_reset_link': {
             $me = $auth->requireAdmin();
-            if ($store->throttle('invite', (string)$me['id'], 30, 3600) > 0) {
+            if ($store->throttle('invite', (string)$me['id'], 60, 3600) > 0) {
                 Helpers::fail('Too many emails just now. Try again later.', 429);
             }
             $acc = new Accounts($store);

@@ -42,7 +42,7 @@ exports go through the same encryption.
   anyone holding a copy of the database could try guesses offline.
 - Encrypting a board that already has content encrypts all of it, attachments
   included. If that is interrupted, the encryption dialog says what is left
-  and finishes it. An encrypted board has no background picture.
+  and finishes it. A background picture is encrypted too.
 - A remembered board key belongs to your account on that browser and is
   forgotten when you sign out.
 

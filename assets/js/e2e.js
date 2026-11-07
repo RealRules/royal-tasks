@@ -311,9 +311,22 @@ class RKE2E {
       u = await this.api.call("delete_attachment", { boardId, cardId: card.id, attachmentId: a.id });
       this.app.store.updateBoardInPlace(u.board, true);
     }
+    // A background picture stored readable: upload it again encrypted (the
+    // server then deletes the readable one).
     const now = this.app.store.boards.find((b) => b.id === boardId);
-    if (now?.backgroundImage) {
-      const u = await this.api.call("clear_board_background", { boardId });
+    if (now?.backgroundImage && now.backgroundMime !== KanbanApp.SEALED_BACKGROUND) {
+      onProgress?.("Encrypting the background picture…");
+      const res = await fetch(`api/file.php?b=${encodeURIComponent(boardId)}&f=${encodeURIComponent(now.backgroundImage)}`, { credentials: "same-origin" });
+      const bytes = res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
+      let u;
+      if (bytes && KanbanApp.rasterType(bytes)) {
+        const fd = new FormData();
+        fd.append("encrypted", "1");
+        fd.append("file", new Blob([c.encryptBytes(bytes, key, c.attachmentAad(boardId, "background"))], { type: "application/octet-stream" }), "enc.bin");
+        u = await this.api.upload("upload_board_background", { boardId }, fd);
+      } else {
+        u = await this.api.call("clear_board_background", { boardId }); // unreadable: drop it
+      }
       this.app.store.updateBoardInPlace(u.board, true);
     }
     this.plainLeft.delete(boardId);
@@ -461,7 +474,7 @@ class RKE2E {
       this.decryptCard(card, board.id);
       this.plainSeen += (card.attachments || []).filter((a) => a && !a.encrypted).length;
     });
-    if (board.backgroundImage) this.plainSeen++;
+    if (board.backgroundImage && board.backgroundMime !== KanbanApp.SEALED_BACKGROUND) this.plainSeen++;
     if (this.plainSeen) this.plainLeft.set(board.id, this.plainSeen); else this.plainLeft.delete(board.id);
   }
 
