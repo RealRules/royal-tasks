@@ -771,6 +771,32 @@ body[data-scheme="synthwave"]:not([data-has-bg]) {
   .label-name::placeholder { color: inherit; opacity: .65; }
   /* The card dialog: less room above the title than around the rest. */
   .cm-card { padding: 12px 20px 20px; }
+  /* The title row stays at the top of a long card (with ⋯ and ✕). */
+  /* Sticky offsets count from inside the card's 12px top padding, so the
+     row reaches up through it (and through a title image's 14px margin). */
+  .cm-head {
+    position: sticky;
+    top: -12px;
+    z-index: 6;
+    margin: -12px -20px 0;
+    padding: 12px 20px 6px;
+    background: var(--card);
+  }
+  /* A card just added, while the server saves it: faint, with a spinner. */
+  .card.card-saving { opacity: .7; }
+  .card.card-saving::after {
+    content: "";
+    position: absolute;
+    top: 9px;
+    right: 9px;
+    width: 13px;
+    height: 13px;
+    border-radius: 999px;
+    border: 2px solid color-mix(in oklab, var(--accent) 30%, transparent);
+    border-top-color: var(--accent);
+    animation: card-saving-spin .7s linear infinite;
+  }
+  @keyframes card-saving-spin { to { rotate: 360deg; } }
   .cm-cover { margin: -12px -20px 14px; overflow: hidden; border-radius: var(--r-lg) var(--r-lg) 0 0; }
   /* A user's picture, or their initials on a tint when there is none. */
   .avatar {

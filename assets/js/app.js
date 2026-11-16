@@ -265,7 +265,14 @@ class KanbanApp {
       this.modal.labelsChanged();
       return;
     }
-    if (change.type === "select") { this.closeFind(); this.render(); return; }
+    if (change.type === "select") {
+      this.closeFind();
+      const switched = this.shownBoardId !== this.store.activeBoardId;
+      this.render();
+      // Another board opens at its start, not where the last one was scrolled to.
+      if (switched) this.scrollBoardToStart();
+      return;
+    }
     // A boards update can be our own optimistic change or a remote one arriving
     // on the poll. Reconcile the lists and cards in place rather than rebuilding
     // #lists, which replayed the fade-in on every node and made the board flash
@@ -341,8 +348,10 @@ class KanbanApp {
       }
       prev = el;
     });
-    // Anything left in the map is gone from the model.
-    existing.forEach((el) => el.remove());
+    // Anything left in the map is gone from the model, except a card just
+    // added that the server is still saving (its id is a stand-in): a poll
+    // arriving first must not take it away.
+    existing.forEach((el, id) => { if (!String(id).startsWith("tmp_")) el.remove(); });
   }
 
   // ---------- auth ----------
@@ -1678,7 +1687,8 @@ class KanbanApp {
     let tempEl = null;
     if (body) {
       tempEl = document.createElement("div");
-      tempEl.className = "card";
+      tempEl.className = "card card-saving";
+      tempEl.title = "Saving…";
       // The temp id is replaced with the real one once the server confirms, so
       // an in-place sync can recognise this node as the same card.
       tempEl.dataset.cardId = card.id;
@@ -1709,8 +1719,19 @@ class KanbanApp {
       const board = this.store.boards.find((b) => b.id === boardId);
       const real = board?.cards?.find((c) => c.id === card.id);
       const list = board?.lists?.find((l) => l.id === listId);
-      if (tempEl?.isConnected && real && list) {
+      if (tempEl && !tempEl.isConnected) {
+        // A redraw took the stand-in away meanwhile (a poll that came before
+        // the card was saved): the store has the card now, so show it.
+        this.syncBoard();
+        document.querySelector(`#lists .card[data-card-id="${CSS.escape(card.id)}"]`)?.classList.add("just-added");
+      } else if (tempEl && [...document.querySelectorAll(`#lists .card[data-card-id="${CSS.escape(card.id)}"]`)].some((x) => x !== tempEl)) {
+        // A poll after the save but before this reply already drew the card:
+        // the stand-in goes, so it does not show twice.
+        tempEl.remove();
+        document.querySelector(`#lists .card[data-card-id="${CSS.escape(card.id)}"]`)?.classList.add("just-added");
+      } else if (tempEl && real && list) {
         const el = this.buildCardEl(real, list, board, this.canEdit());
+        el.classList.add("just-added"); // saved: a short flash of the accent
         tempEl.replaceWith(el);
         // The real card is taller than the stand-in: keep it in view.
         if (document.activeElement === inp) requestAnimationFrame(() => KanbanApp.revealRange(el, inp));
@@ -4129,9 +4150,18 @@ class KanbanApp {
       (board.labels || []).map((l) => [l.id, l.name, l.color])]);
   }
 
+  /** The board scrolled back to its first list, and the page to its top. */
+  scrollBoardToStart() {
+    const wrap = document.getElementById("lists");
+    if (wrap) { wrap.scrollLeft = 0; wrap.scrollTop = 0; }
+    const page = document.scrollingElement;
+    if (page) { page.scrollLeft = 0; page.scrollTop = 0; }
+  }
+
   render() {
     const boards = this.store.boards;
     const board = this.store.activeBoard;
+    this.shownBoardId = board?.id || null;
     this.lastBoardSig = this.boardSig(board);
     document.body.dataset.scheme = board?.colorScheme || "palmbeach";
     this.applyBoardBackground(board);

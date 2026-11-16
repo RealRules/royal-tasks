@@ -504,6 +504,14 @@ class CardModal {
   get store() { return this.app.store; }
 
   open(board, cardId) {
+    // A card the board does not hold (yet): one just added, still being
+    // saved, has only a stand-in id. Opening it drew nothing, but the dialog
+    // was shown anyway, holding no card, and then nothing could close it.
+    const live = this.store.boards.find((b) => b.id === board?.id) || board;
+    if (!(live?.cards || []).some((c) => c.id === cardId)) {
+      this.app.toast(String(cardId).startsWith("tmp_") ? "This card is still being saved. Open it in a moment." : "That card is no longer on the board.");
+      return;
+    }
     this.board = board;
     this.cardId = cardId;
     this.descEditing = false;
@@ -553,9 +561,18 @@ class CardModal {
 
   /** Close the card. `save: false` drops unsaved edits (the card is going away). */
   close({ save = true } = {}) {
-    if (!this.cardId) return; // Escape with no card open
-    if (save) this.flush();
-    else this.descEditing = false;
+    // Escape with no card open. A dialog on screen without a card (it should
+    // not happen, but if it does) is still closed: closing must always work.
+    if (!this.cardId && this.root.classList.contains("hidden")) return;
+    try {
+      if (save) this.flush();
+      else this.descEditing = false;
+    } catch (e) {
+      // Saving what was typed is attempted; a failure there must not keep
+      // the dialog on screen with nothing able to close it.
+      console.error(e);
+      this.descEditing = false;
+    }
     this.root.classList.add("hidden");
     this.root.classList.remove("flex");
     this.board = null; this.cardId = null;
@@ -1528,8 +1545,9 @@ class CardModal {
     <div class="modal-card cm-card relative panel panel-strong w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" tabindex="-1">
       <div class="cm-cover" id="cm-cover" hidden><img alt="" /></div>
       <!-- One row, centred on each other: the tick, the title and the actions
-           line up whatever the fonts. -->
-      <div class="flex items-center gap-2">
+           line up whatever the fonts. It stays at the top while the card
+           scrolls, so ✕ is always at hand. -->
+      <div class="cm-head flex items-center gap-2">
         <button class="card-check lg" id="cm-complete" role="checkbox" aria-checked="${done}"
                 title="${done ? "Mark incomplete" : "Mark complete"}" aria-label="${done ? "Mark incomplete" : "Mark complete"}" ${ro}>✓</button>
         <input id="cm-title" class="input input-bare cm-title flex-1 min-w-0 font-bold text-lg" value="${this.esc(card.title)}" aria-label="Card title" ${ro} />

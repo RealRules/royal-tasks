@@ -33,6 +33,16 @@ class DragDrop {
   }
   get store() { return this.app.store; }
 
+  /**
+   * A drag starting while a field has the focus (the card being typed, on a
+   * phone with its keyboard up): the field lets go, so the keyboard closes
+   * and the whole board is in reach while dragging.
+   */
+  static releaseKeyboard() {
+    const a = document.activeElement;
+    if (a && a !== document.body && (a.matches?.("input, textarea, select") || a.isContentEditable)) a.blur();
+  }
+
   /** Build the element that follows the cursor. Fully ours, so fully opaque. */
   startLayer(el, e) {
     const rect = el.getBoundingClientRect();
@@ -134,6 +144,9 @@ class DragDrop {
     el.draggable = true;
     el.addEventListener("dragstart", (e) => {
       if (!this.app.canEdit()) { e.preventDefault(); return; }
+      // A card just added and not saved yet has no real id to move.
+      if (String(card.id).startsWith("tmp_")) { e.preventDefault(); return; }
+      DragDrop.releaseKeyboard();
       this.dragCard = { cardId: card.id, fromListId: listId };
       e.dataTransfer.effectAllowed = "move";
       try { e.dataTransfer.setData("text/plain", card.id); } catch {}
@@ -237,6 +250,7 @@ class DragDrop {
     if (!grip) return;
     grip.setAttribute("draggable", "true");
     grip.addEventListener("dragstart", (e) => {
+      DragDrop.releaseKeyboard();
       e.dataTransfer.setData("text/list", list.id);
       listEl.classList.add("dragging"); // immediate: dragover matches .list:not(.dragging)
       this.dragListId = list.id;
