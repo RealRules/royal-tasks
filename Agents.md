@@ -38,6 +38,7 @@ The card dialog only opens for a card the board holds; one still being saved say
 An open card keeps the keyboard focus: when the window comes back (or the dialog is redrawn) and the element that had it is gone, the card takes it (`CardModal.reclaimFocus`); a field that still has it keeps it.
 A text box being edited in the card dialog (title, description, a comment, a checklist item or title, the calendar name) has a ✓ (`CardModal.attachDone`): it saves as leaving the box would, takes the focus away, and the box flashes green with a ✓ badge.
 Descriptions: Rich descriptions to capture all necessary context for a task.
+Ctrl+Shift+V (⌘⇧V) pastes plain text everywhere: into the description it inserts the text without its formatting (an ordinary paste keeps it, sanitized on save), a link pasted that way into a checklist item stays an address rather than becoming `[Title](url)`, and a picture on the clipboard is not attached. The paste event does not say which keys made it, so the keys are noted as they go down (`KanbanApp.wantsPlainPaste`, one second).
 Activity History: A feed showing when tasks were created.
 User Management: Administrator board creating users. For now there is no public signup, only user assignment by the administrator. Only the administrator can create or delete users.
 Every user can have several boards.

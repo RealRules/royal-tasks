@@ -17,10 +17,10 @@ are needed: never from a CDN.
 | Component | Version | What it does here | Licence | Notice |
 | --- | --- | --- | --- | --- |
 | [libsodium](https://libsodium.org) by Frank Denis, via [libsodium.js](https://github.com/jedisct1/libsodium.js) by Ahmad Ben Mrad, Frank Denis and Ryan Lester | 0.8.4 | End-to-end encryption of boards: XChaCha20-Poly1305 and Argon2id | ISC | `assets/vendor/sodium.LICENSE` |
-| [PDF.js](https://mozilla.github.io/pdf.js/) by Mozilla and contributors | 6.3.289 | Shows PDF attachments | Apache-2.0 | `assets/vendor/pdfjs/LICENSE` |
+| [PDF.js](https://mozilla.github.io/pdf.js/) by Mozilla and contributors | 6.5.438 | Shows PDF attachments | Apache-2.0 | `assets/vendor/pdfjs/LICENSE` |
 | [mammoth](https://github.com/mwilliamson/mammoth.js) by Michael Williamson | 1.13.0 | Shows Word (.docx) attachments | BSD-2-Clause | `assets/vendor/mammoth/LICENSE` |
-| [libheif](https://github.com/strukturag/libheif) by struktur AG, via [libheif-js](https://github.com/catdad-experiments/libheif-js) by Kiril Vatev | 1.23.2 | Shows HEIC/HEIF photos where the browser cannot | LGPL-3.0 | `assets/vendor/libheif/LICENSE` |
-| [Tailwind CSS](https://tailwindcss.com) by Tailwind Labs | 4.3.3 | The stylesheet is compiled with it, including its base styles (Preflight) | MIT | Kept in the header of `assets/css/app.css` |
+| [libheif](https://github.com/strukturag/libheif) by struktur AG, via [libheif-js](https://github.com/catdad-experiments/libheif-js) by Kiril Vatev | 1.23.5 | Shows HEIC/HEIF photos where the browser cannot | LGPL-3.0 | `assets/vendor/libheif/LICENSE` |
+| [Tailwind CSS](https://tailwindcss.com) by Tailwind Labs | 4.3.5 | The stylesheet is compiled with it, including its base styles (Preflight) | MIT | Kept in the header of `assets/css/app.css` |
 
 ### Inside PDF.js
 

@@ -956,6 +956,7 @@ class CardModal {
    */
   static takeTitledLinks(input) {
     const take = (e, dt) => {
+      if (e.type === "paste" && KanbanApp.wantsPlainPaste()) return; // Ctrl+Shift+V: the text as it is
       const found = KanbanApp.linkFromTransfer(dt);
       if (!found) return;
       const all = input.value.trim() === "" || (input.selectionStart === 0 && input.selectionEnd === input.value.length);
@@ -1777,6 +1778,16 @@ class CardModal {
       q("#cm-desc-view")?.classList.add("hidden");
       q("#cm-desc-editor-wrap")?.classList.remove("hidden");
       q("#cm-desc-edit")?.focus();
+    });
+    // Ctrl+Shift+V (⌘⇧V) pastes the text without its formatting, in every
+    // browser (some do it themselves, some do not). insertText keeps undo.
+    q("#cm-desc-edit")?.addEventListener("paste", (e) => {
+      if (!KanbanApp.wantsPlainPaste()) return; // an ordinary paste keeps formatting (sanitized on save)
+      const text = e.clipboardData?.getData("text/plain");
+      if (typeof text !== "string") return;
+      e.preventDefault();
+      KanbanApp.plainPasteAt = undefined;
+      document.execCommand("insertText", false, text);
     });
     q("#cm-desc-edit")?.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {

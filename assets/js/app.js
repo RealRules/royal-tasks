@@ -59,6 +59,12 @@ class KanbanApp {
   afterInit() {
     this.reportShareStatus();
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") this.modal.close(); });
+    // Ctrl+Shift+V (⌘⇧V): the paste that follows is plain text, wherever it
+    // lands. The paste event itself does not say which keys made it, so the
+    // keys are noted as they go down (wantsPlainPaste).
+    document.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "v" || e.key === "V")) KanbanApp.plainPasteAt = performance.now();
+    }, true);
     document.addEventListener("paste", (e) => this.onPaste(e));
     document.addEventListener("keydown", (e) => this.onBoardKey(e));
     const lists = document.getElementById("lists");
@@ -1357,6 +1363,11 @@ class KanbanApp {
       .catch(() => { /* unreadable: the board shows without its picture */ });
   }
 
+  /** True for the paste Ctrl+Shift+V (⌘⇧V) just started: plain text only. */
+  static wantsPlainPaste() {
+    return KanbanApp.plainPasteAt !== undefined && performance.now() - KanbanApp.plainPasteAt < 1000;
+  }
+
   /** At most this many addresses in one batch of invitations. */
   static BATCH_INVITES = 25;
 
@@ -1551,6 +1562,8 @@ class KanbanApp {
     // clipboard; in a text field the text is what was meant.
     const inField = !!t?.closest("input, textarea, [contenteditable='true']");
     if (inField && (data.getData("text/plain") || "").trim()) return;
+    // Pasting as plain text into a field never attaches a picture.
+    if (inField && KanbanApp.wantsPlainPaste()) return;
 
     let boardId, cardId, cardEl = null, inModal = false;
     if (this.modal.cardId) {
